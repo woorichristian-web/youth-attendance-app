@@ -526,59 +526,26 @@ function SystemSettings() {
       </form>
 
       <div className="mt-8 border-t border-slate-100 pt-6">
-        <h3 className="text-sm font-bold text-slate-700 mb-3">Firestore 보안 규칙 설정</h3>
+        <h3 className="text-sm font-bold text-slate-700 mb-3">Firestore 보안 규칙 (현재 적용 중)</h3>
         <div className="bg-slate-800 text-slate-100 rounded-xl p-4 text-xs overflow-x-auto">
           <pre>{`rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-    function isTeacher() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
-    }
-    match /users/{userId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
-    }
-    match /classes/{classId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
-    }
-    match /students/{studentId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
-    }
-    match /attendance/{attendanceId} {
-      allow read: if request.auth != null;
+    // 로그인 전 이름→이메일 조회용 (이 규칙을 지우면 이름 로그인이 깨집니다)
+    match /usernames/{name} {
+      allow read: if true;
       allow write: if request.auth != null;
     }
-    match /class_growth_categories/{classId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-    match /student_growth/{studentId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-    match /growth_logs/{logId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-    match /offerings/{offeringId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
-    }
-    match /retreats/{retreatId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
+    // 나머지 컬렉션은 인증된 사용자만
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }`}</pre>
         </div>
         <p className="text-xs text-slate-400 mt-2">
-          Firebase 콘솔 → Firestore → 규칙 탭에 위 규칙을 붙여넣으세요.
-          (성장 스티커·헌금·수련회 기능을 위한 규칙이 추가되었습니다)
+          현재 이 규칙이 적용되어 있어 출석·성장 스티커·헌금·수련회 기능이 모두 작동합니다.
+          ⚠️ usernames 규칙은 이름 로그인에 필요하므로 절대 삭제하지 마세요.
         </p>
       </div>
     </div>
