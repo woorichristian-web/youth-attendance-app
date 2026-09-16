@@ -45,19 +45,16 @@ export default function Navbar() {
         { to: '/announcements', label: '공지 · 알림', icon: '📢' },
         { to: '/students', label: '사역팀', icon: '🙏' },
       ]
-    : (isTeacher && !isAdmin)
+    : isAdmin
     ? [
-        { to: '/teacher-home?tab=attend', label: '출석', icon: '✅', tab: 'attend' },
-        { to: '/teacher-home?tab=growth', label: '성장', icon: '🌱', tab: 'growth' },
-        { to: '/teacher-home?tab=songcheong', label: '송청', icon: '🙏', tab: 'songcheong' },
+        { to: '/admin-home', label: '홈', icon: '🏠' },
         { to: '/announcements', label: '공지·알림', icon: '📢' },
       ]
     : [
-        { to: '/announcements', label: '공지·알림', icon: '📢' },
-        { to: '/attendance', label: '출석 체크', icon: '✅' },
-        { to: '/dashboard', label: '출석 현황', icon: '📊' },
-        { to: '/students', label: '사역팀', icon: '🙏' },
-        ...(isAdmin ? [{ to: '/admin', label: '관리자', icon: '⚙️' }] : []),
+        { to: '/teacher-home?tab=attend', label: '출석', icon: '✅', tab: 'attend' },
+        { to: '/teacher-home?tab=growth', label: '성장', icon: '🌱', tab: 'growth' },
+        { to: '/teacher-home?tab=songcheong', label: '송청', icon: '🙏', tab: 'songcheong' },
+        { to: '/my-page', label: '마이페이지', icon: '👤' },
       ];
 
   const currentTab = new URLSearchParams(location.search).get('tab') || 'attend';
@@ -86,8 +83,8 @@ export default function Navbar() {
                   to={link.to}
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     isActive(link)
-                      ? 'bg-ocean-400 text-white shadow-sm'
-                      : 'text-ink-soft hover:bg-ocean-100'
+                      ? (isAdmin ? 'bg-teal-600 text-white shadow-sm' : 'bg-ocean-400 text-white shadow-sm')
+                      : (isAdmin ? 'text-stone-600 hover:bg-teal-50' : 'text-ink-soft hover:bg-ocean-100')
                   }`}
                 >
                   {link.label}
@@ -105,12 +102,16 @@ export default function Navbar() {
                   </button>
                 )}
                 <span>{displayName}</span>
-                <span className="bg-ocean-100 text-ocean-700 px-2 py-0.5 rounded-full text-xs font-semibold">
+                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                  isAdmin ? 'bg-teal-100 text-teal-700' : 'bg-ocean-100 text-ocean-700'
+                }`}>
                   {displayBadge}
                 </span>
                 <button
                   onClick={handleLogout}
-                  className="ml-2 px-3 py-1 bg-ocean-400 rounded-full hover:bg-ocean-500 text-white text-xs font-medium shadow-sm"
+                  className={`ml-2 px-3 py-1 rounded-full text-white text-xs font-medium shadow-sm ${
+                    isAdmin ? 'bg-teal-600 hover:bg-teal-700' : 'bg-ocean-400 hover:bg-ocean-500'
+                  }`}
                 >
                   로그아웃
                 </button>

@@ -12,6 +12,8 @@ import AdminPage from './pages/AdminPage';
 import RegisterStudentPage from './pages/RegisterStudentPage';
 import MyClassStudentsPage from './pages/MyClassStudentsPage';
 import TeacherHomePage from './pages/TeacherHomePage';
+import TeacherMyPage from './pages/TeacherMyPage';
+import AdminAppPage from './pages/AdminAppPage';
 import HomeRedirect from './components/HomeRedirect';
 
 export default function App() {
@@ -83,6 +85,22 @@ export default function App() {
               element={
                 <ProtectedRoute path="/teacher-home">
                   <TeacherHomePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/my-page"
+              element={
+                <ProtectedRoute path="/my-page">
+                  <TeacherMyPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin-home"
+              element={
+                <ProtectedRoute adminOnly={true}>
+                  <AdminAppPage />
                 </ProtectedRoute>
               }
             />

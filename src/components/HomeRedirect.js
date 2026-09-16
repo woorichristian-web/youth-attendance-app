@@ -7,9 +7,10 @@ import { useAuth } from '../contexts/AuthContext';
 // - 관리자: /attendance (기존 워크플로 유지)
 // - 반사 교사: /teacher-home (새 통합 홈)
 export default function HomeRedirect() {
-  const { currentUser, userProfile, isAdmin, isLimited, isTeacher } = useAuth();
+  const { currentUser, isAdmin, isLimited, isTeacher } = useAuth();
   if (!currentUser) return <Navigate to="/login" replace />;
   if (isLimited) return <Navigate to="/announcements" replace />;
-  if (isTeacher && !isAdmin) return <Navigate to="/teacher-home" replace />;
-  return <Navigate to="/attendance" replace />;
+  if (isAdmin) return <Navigate to="/admin-home" replace />;
+  if (isTeacher) return <Navigate to="/teacher-home" replace />;
+  return <Navigate to="/announcements" replace />;
 }
