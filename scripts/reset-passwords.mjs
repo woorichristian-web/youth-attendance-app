@@ -74,11 +74,24 @@ function surnameToKeys(ch) {
   return CHO[Math.floor(i / 588)] + JUNG[Math.floor((i % 588) / 28)] + JONG[i % 28];
 }
 
+// ── 특별 계정 이름 지정 (Firestore에 이름이 없는 계정) ──
+// 저장소에 이름을 남기지 않도록 실행 시 환경변수로 받는다.
+// 형식: SPECIAL_NAMES="admin=홍길동,leader1=김철수" (이메일의 @ 앞부분=이름)
+const SPECIAL_NAMES = {};
+(process.env.SPECIAL_NAMES || '').split(',').forEach((pair) => {
+  const [k, v] = pair.split('=').map((x) => (x || '').trim());
+  if (k && v) SPECIAL_NAMES[k.toLowerCase()] = v;
+});
+
 // ── 대상 계산 ──
 const rows = [];
 const skipped = [];
 for (const u of authUsers) {
-  const name = nameByUid[u.localId] || nameByEmail[(u.email || '').toLowerCase()] || '';
+  const localPart = (u.email || '').split('@')[0].toLowerCase();
+  const name = nameByUid[u.localId]
+    || nameByEmail[(u.email || '').toLowerCase()]
+    || SPECIAL_NAMES[localPart]
+    || '';
   const keys = name ? surnameToKeys(name[0]) : null;
   if (!keys) { skipped.push({ email: u.email || u.localId, name }); continue; }
   rows.push({ uid: u.localId, email: u.email || '', name, pw: `${keys}1234` });
