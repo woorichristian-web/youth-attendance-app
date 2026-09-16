@@ -81,7 +81,7 @@ export default function LoginPage() {
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
               className="input"
-              placeholder="예: 강현미"
+              placeholder="예: 전호진"
               autoComplete="username"
               autoCapitalize="off"
               autoCorrect="off"
