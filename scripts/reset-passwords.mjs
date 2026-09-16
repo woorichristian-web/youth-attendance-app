@@ -2,6 +2,10 @@
 // 규칙: 성(姓)을 두벌식 영타로 친 것 + "1234"  (예: 전→wjs1234, 김→rla1234)
 // MODE=dry-run  → 변경 없이 목록·중복만 출력
 // MODE=apply    → 실제로 비밀번호 변경
+//
+// SET_PASSWORDS가 주어지면 전체 규칙 대신 지정한 계정만 개별 비밀번호로 설정한다.
+// 형식: "이름=전화번호" 쉼표 구분 (예: "전성배1=010-1234-5678,김정나1=01087654321")
+// → 전화번호에서 숫자만 남긴 뒤 마지막 8자리를 비밀번호로 사용
 import crypto from 'crypto';
 
 const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
@@ -82,6 +86,48 @@ const SPECIAL_NAMES = {};
   const [k, v] = pair.split('=').map((x) => (x || '').trim());
   if (k && v) SPECIAL_NAMES[k.toLowerCase()] = v;
 });
+
+// ── 개별 비밀번호 지정 모드 (SET_PASSWORDS) ──
+const setPairs = (process.env.SET_PASSWORDS || '').split(',').map((p) => p.trim()).filter(Boolean);
+if (setPairs.length > 0) {
+  const nameToUid = {};
+  authUsers.forEach((u) => {
+    const nm = nameByUid[u.localId] || nameByEmail[(u.email || '').toLowerCase()] || '';
+    if (nm) nameToUid[nm] = { uid: u.localId, email: u.email || '' };
+  });
+
+  let ok = 0, fail = 0;
+  for (const pair of setPairs) {
+    const [name, phoneRaw] = pair.split('=').map((x) => (x || '').trim());
+    const digits = (phoneRaw || '').replace(/\D/g, '');
+    const pw = digits.slice(-8);
+    if (!name || pw.length < 8) {
+      console.log(`건너뜀: '${pair}' — 이름 또는 전화번호(8자리 이상 숫자)가 올바르지 않음`);
+      fail++;
+      continue;
+    }
+    const target = nameToUid[name];
+    if (!target) {
+      console.log(`실패: '${name}' 이름의 계정을 찾을 수 없음`);
+      fail++;
+      continue;
+    }
+    if (MODE === 'apply') {
+      const res = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${P}/accounts:update`, {
+        method: 'POST',
+        headers: H,
+        body: JSON.stringify({ localId: target.uid, password: pw }),
+      });
+      if (res.ok) { ok++; console.log(`변경 완료: ${name} (${target.email}) → 전화번호 뒤 8자리`); }
+      else { fail++; console.log(`실패: ${name} — HTTP ${res.status}`); }
+    } else {
+      console.log(`(dry-run) ${name} (${target.email}) → ${pw}`);
+      ok++;
+    }
+  }
+  console.log(`개별 설정 ${MODE === 'apply' ? '적용' : '미리보기'} 완료: 성공 ${ok}건, 실패 ${fail}건`);
+  process.exit(0);
+}
 
 // ── 대상 계산 ──
 const rows = [];

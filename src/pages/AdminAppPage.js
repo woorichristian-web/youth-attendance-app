@@ -23,16 +23,6 @@ import SchoolStats from '../components/dashboard/SchoolStats';
 import { getSundaysInMonth } from '../utils/dateUtils';
 import { filterExcludedSundays } from '../utils/excludedDates';
 
-const TOP_MENUS = [
-  { id: 'attendance_view', label: '출석현황' },
-  { id: 'students', label: '학생' },
-  { id: 'teachers', label: '선생님' },
-  { id: 'sunday_report', label: '주일보고' },
-  { id: 'offering', label: '헌금' },
-  { id: 'retreat', label: '수련회' },
-  { id: 'settings', label: '설정' },
-];
-
 // 학생·반·출석 실시간 구독 공용 훅
 function useChurchData() {
   const [students, setStudents] = useState([]);
@@ -86,23 +76,6 @@ export default function AdminAppPage() {
   return (
     <div className="min-h-screen">
       <div className="max-w-6xl mx-auto px-4 py-6 pb-24 md:pb-10">
-        {/* 상단 텍스트 메뉴 */}
-        <div className="flex gap-6 md:gap-8 mb-6 overflow-x-auto pb-1">
-          {TOP_MENUS.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => setMenu(m.id)}
-              className={`flex-shrink-0 text-sm whitespace-nowrap transition-colors ${
-                menu === m.id
-                  ? 'text-teal-700 font-semibold'
-                  : 'text-stone-600 font-medium hover:text-stone-900'
-              }`}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-
         {/* 헤더 (제목 클릭 시 홈으로) */}
         <div className="mb-6 flex items-end justify-between flex-wrap gap-2">
           <button onClick={() => setMenu('')} className="text-left">

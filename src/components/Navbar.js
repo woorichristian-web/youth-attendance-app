@@ -47,7 +47,14 @@ export default function Navbar() {
       ]
     : isAdmin
     ? [
-        { to: '/admin-home', label: '홈', icon: '🏠' },
+        { to: '/admin-home', label: '홈', icon: '🏠', menu: '' },
+        { to: '/admin-home?m=attendance_view', label: '출석현황', icon: '✅', menu: 'attendance_view' },
+        { to: '/admin-home?m=students', label: '학생', icon: '🎓', menu: 'students' },
+        { to: '/admin-home?m=teachers', label: '선생님', icon: '👩‍🏫', menu: 'teachers' },
+        { to: '/admin-home?m=sunday_report', label: '주일보고', icon: '📋', menu: 'sunday_report' },
+        { to: '/admin-home?m=offering', label: '헌금', icon: '💰', menu: 'offering' },
+        { to: '/admin-home?m=retreat', label: '수련회', icon: '⛺', menu: 'retreat' },
+        { to: '/admin-home?m=settings', label: '설정', icon: '🔐', menu: 'settings' },
         { to: '/announcements', label: '공지·알림', icon: '📢' },
       ]
     : [
@@ -58,9 +65,13 @@ export default function Navbar() {
       ];
 
   const currentTab = new URLSearchParams(location.search).get('tab') || 'attend';
+  const currentMenu = new URLSearchParams(location.search).get('m') || '';
   const isActive = (link) => {
     if (link.tab) {
       return location.pathname.startsWith('/teacher-home') && currentTab === link.tab;
+    }
+    if (link.menu !== undefined) {
+      return location.pathname.startsWith('/admin-home') && currentMenu === link.menu;
     }
     return location.pathname.startsWith(link.to);
   };
@@ -166,15 +177,15 @@ export default function Navbar() {
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/85 backdrop-blur-lg border-t border-white/60 shadow-[0_-4px_16px_-8px_rgba(15,79,181,0.15)]"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        <div className="flex items-stretch justify-around">
+        <div className={`flex items-stretch ${isAdmin ? 'overflow-x-auto' : 'justify-around'}`}>
           {navLinks.map((link) => {
             const active = isActive(link);
             return (
               <Link
                 key={link.to}
                 to={link.to}
-                className={`flex-1 flex flex-col items-center justify-center py-2 text-[10px] font-medium transition-colors ${
-                  active ? 'text-ocean-600' : 'text-ink-muted'
+                className={`${isAdmin ? 'flex-none px-3' : 'flex-1'} flex flex-col items-center justify-center py-2 text-[10px] font-medium transition-colors ${
+                  active ? (isAdmin ? 'text-teal-600' : 'text-ocean-600') : 'text-ink-muted'
                 }`}
               >
                 <span
