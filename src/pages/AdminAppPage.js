@@ -74,7 +74,7 @@ export default function AdminAppPage() {
   }, []);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen admin-theme">
       <div className="max-w-6xl mx-auto px-4 py-6 pb-24 md:pb-10">
         {/* 헤더 (제목 클릭 시 홈으로) */}
         <div className="mb-6 flex items-end justify-between flex-wrap gap-2">
