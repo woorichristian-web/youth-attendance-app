@@ -38,7 +38,7 @@ export default function LoginPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!userId || !password) return setError('아이디와 비밀번호를 입력하세요.');
+    if (!userId || !password) return setError('이름과 비밀번호를 입력하세요.');
     setError('');
     setLoading(true);
     try {
@@ -75,22 +75,19 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="label">아이디 또는 이름</label>
+            <label className="label">이름</label>
             <input
               type="text"
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
               className="input"
-              placeholder="예: 강현미 · st100 · admin"
+              placeholder="예: 강현미"
               autoComplete="username"
               autoCapitalize="off"
               autoCorrect="off"
               spellCheck={false}
               required
             />
-            <p className="text-xs text-ink-muted mt-1">
-              한글 이름 또는 영문 아이디(@songrim.church 자동)로 로그인
-            </p>
           </div>
           <div>
             <label className="label">비밀번호</label>
