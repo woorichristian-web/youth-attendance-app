@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&family=Gowun+Dodum&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    min-height: 100%;
+    color: #0a1f3d;
+    font-family: 'Noto Sans KR', 'Gowun Dodum', -apple-system, system-ui, sans-serif;
+  }
+
+  body {
+    background:
+      radial-gradient(1100px 460px at 50% -8%, rgba(255, 255, 255, 0.72), transparent 62%),
+      linear-gradient(#f0f7fe, #e7eef4 11%, #d6e7f4 32%, #c3dbef 62%, #afcfe9) fixed;
+    background-attachment: fixed;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply rounded-full bg-ocean-400 px-5 py-2.5 font-semibold text-white shadow-soft transition-all hover:bg-ocean-500 active:bg-ocean-600 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply rounded-full border border-white bg-white/80 px-5 py-2.5 font-medium text-ink-soft shadow-sm backdrop-blur transition-all hover:bg-white;
+  }
+
+  .card {
+    @apply rounded-2xl border border-white/60 bg-white/85 p-4 backdrop-blur;
+    box-shadow: 0 4px 20px -8px rgba(15, 79, 181, 0.12), 0 1px 3px rgba(10, 31, 61, 0.05);
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-ocean-100 bg-white/90 px-3.5 py-2.5 text-ink transition-all focus:border-ocean-400 focus:outline-none focus:ring-2 focus:ring-ocean-400/40;
+  }
+
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-ink-soft;
+  }
+}
