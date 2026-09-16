@@ -42,24 +42,31 @@ export default function Navbar() {
 
   const navLinks = isLimited
     ? [
-        { to: '/announcements', label: '공지 · 알림' },
-        { to: '/students', label: '사역팀' },
+        { to: '/announcements', label: '공지 · 알림', icon: '📢' },
+        { to: '/students', label: '사역팀', icon: '🙏' },
       ]
     : (isTeacher && !isAdmin)
     ? [
-        { to: '/teacher-home', label: '홈' },
-        { to: '/announcements', label: '공지·알림' },
-        { to: '/students', label: '사역팀' },
+        { to: '/teacher-home?tab=attend', label: '출석', icon: '✅', tab: 'attend' },
+        { to: '/teacher-home?tab=growth', label: '성장', icon: '🌱', tab: 'growth' },
+        { to: '/teacher-home?tab=songcheong', label: '송청', icon: '🙏', tab: 'songcheong' },
+        { to: '/announcements', label: '공지·알림', icon: '📢' },
       ]
     : [
-        { to: '/announcements', label: '공지·알림' },
-        { to: '/attendance', label: '출석 체크' },
-        { to: '/dashboard', label: '출석 현황' },
-        { to: '/students', label: '사역팀' },
-        ...(isAdmin ? [{ to: '/admin', label: '관리자' }] : []),
+        { to: '/announcements', label: '공지·알림', icon: '📢' },
+        { to: '/attendance', label: '출석 체크', icon: '✅' },
+        { to: '/dashboard', label: '출석 현황', icon: '📊' },
+        { to: '/students', label: '사역팀', icon: '🙏' },
+        ...(isAdmin ? [{ to: '/admin', label: '관리자', icon: '⚙️' }] : []),
       ];
 
-  const isActive = (to) => location.pathname.startsWith(to);
+  const currentTab = new URLSearchParams(location.search).get('tab') || 'attend';
+  const isActive = (link) => {
+    if (link.tab) {
+      return location.pathname.startsWith('/teacher-home') && currentTab === link.tab;
+    }
+    return location.pathname.startsWith(link.to);
+  };
 
   return (
     <>
@@ -78,7 +85,7 @@ export default function Navbar() {
                   key={link.to}
                   to={link.to}
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive(link.to)
+                    isActive(link)
                       ? 'bg-ocean-400 text-white shadow-sm'
                       : 'text-ink-soft hover:bg-ocean-100'
                   }`}
@@ -160,7 +167,7 @@ export default function Navbar() {
       >
         <div className="flex items-stretch justify-around">
           {navLinks.map((link) => {
-            const active = isActive(link.to);
+            const active = isActive(link);
             return (
               <Link
                 key={link.to}
@@ -174,7 +181,7 @@ export default function Navbar() {
                     active ? 'scale-110' : ''
                   }`}
                 >
-                  {ICONS[link.to] || '•'}
+                  {link.icon || ICONS[link.to] || '•'}
                 </span>
                 <span className="truncate max-w-[64px]">{link.label}</span>
               </Link>
