@@ -149,6 +149,17 @@ export default function AnnouncementsPage() {
     return unsub;
   }, []);
 
+  // 관리자: 다른 어드민 화면과 동일한 아이보리 배경 적용
+  useEffect(() => {
+    if (!isAdmin) return;
+    document.body.style.backgroundImage = 'none';
+    document.body.style.backgroundColor = '#f8f7f4';
+    return () => {
+      document.body.style.backgroundImage = '';
+      document.body.style.backgroundColor = '';
+    };
+  }, [isAdmin]);
+
   const visible = announcements.filter((a) => canViewAnnouncement(a, userProfile, isAdmin));
   // 교사 화면: '받은 메시지' 탭에서만 알림 리스트 표시
   const showAnnouncements = !isTeacher || isAdmin || teacherTab === 'received';
@@ -239,7 +250,7 @@ export default function AnnouncementsPage() {
     RECURRENCE_OPTIONS.find((r) => r.value === rec)?.label || '';
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6">
+    <div className={`max-w-3xl mx-auto px-4 py-6 ${isAdmin ? 'admin-theme' : ''}`}>
       {/* 교사: 목사님께 메시지 보내기 */}
       {isTeacher && !isAdmin && <TeacherMessageComposer />}
 
@@ -263,7 +274,13 @@ export default function AnnouncementsPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-end mb-4">
+      <div className={`flex items-center mb-4 ${isAdmin ? 'justify-between' : 'justify-end'}`}>
+        {isAdmin && (
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-stone-500 font-medium mb-1">Messages</p>
+            <h1 className="text-2xl font-semibold text-stone-900 tracking-tight">메시지</h1>
+          </div>
+        )}
         {canSend && (
           <button onClick={openAdd} className="btn-primary">+ 메시지 전송하기</button>
         )}
