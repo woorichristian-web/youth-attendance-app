@@ -40,7 +40,7 @@ const CATEGORY_TABS = [
   { key: '행정팀', label: '행정팀', match: (t) => t.ministryMain === '행정팀' },
 ];
 
-export default function TeacherManagement({ classes, onClassesChange }) {
+export default function TeacherManagement({ classes = [], onClassesChange }) {
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);

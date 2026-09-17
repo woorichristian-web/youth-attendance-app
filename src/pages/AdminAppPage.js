@@ -41,15 +41,7 @@ export default function AdminAppPage() {
   };
   const displayName = userProfile?.name || '관리자';
 
-  // 관리자 화면일 때는 body 배경을 따뜻한 아이보리 뉴트럴로 오버라이드
-  useEffect(() => {
-    document.body.style.backgroundImage = 'none';
-    document.body.style.backgroundColor = '#f8f7f4';
-    return () => {
-      document.body.style.backgroundImage = '';
-      document.body.style.backgroundColor = '';
-    };
-  }, []);
+  // body 배경(아이보리)은 App의 AdminBodyTheme에서 전역으로 유지 — 페이지 전환 시 파란 배경 깜빡임 방지
 
   return (
     <div className="min-h-screen">
@@ -689,7 +681,7 @@ function TeachersMenu() {
       ) : sub === 'cards' ? (
         <TeacherCardsList teachers={teachers} classes={classes} students={students} attendance={attendance} />
       ) : (
-        <TeacherManagement />
+        <TeacherManagement classes={classes} />
       )}
     </div>
   );

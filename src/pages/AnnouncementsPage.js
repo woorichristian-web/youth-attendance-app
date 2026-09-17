@@ -150,16 +150,7 @@ export default function AnnouncementsPage() {
     return unsub;
   }, []);
 
-  // 관리자: 다른 어드민 화면과 동일한 아이보리 배경 적용
-  useEffect(() => {
-    if (!isAdmin) return;
-    document.body.style.backgroundImage = 'none';
-    document.body.style.backgroundColor = '#f8f7f4';
-    return () => {
-      document.body.style.backgroundImage = '';
-      document.body.style.backgroundColor = '';
-    };
-  }, [isAdmin]);
+  // 관리자 아이보리 배경은 App의 AdminBodyTheme에서 전역으로 유지 (페이지 전환 깜빡임 방지)
 
   const visible = announcements.filter((a) => canViewAnnouncement(a, userProfile, isAdmin));
   // 알림 리스트 표시 여부: 교사는 '받은 메시지' 탭, 관리자는 '보낸 메시지' 탭에서

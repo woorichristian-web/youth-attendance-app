@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
@@ -16,11 +16,28 @@ import TeacherMyPage from './pages/TeacherMyPage';
 import AdminAppPage from './pages/AdminAppPage';
 import HomeRedirect from './components/HomeRedirect';
 
+// 관리자 로그인 상태에서는 페이지 전환 중에도 body 배경을 항상 아이보리로 유지
+// (페이지별 useEffect로 처리하면 라우트 전환 순간 교사용 파란 배경이 잠깐 보이는 문제가 있음)
+function AdminBodyTheme() {
+  const { currentUser, isAdmin } = useAuth();
+  useEffect(() => {
+    if (currentUser && isAdmin) {
+      document.body.style.backgroundImage = 'none';
+      document.body.style.backgroundColor = '#f8f7f4';
+    } else {
+      document.body.style.backgroundImage = '';
+      document.body.style.backgroundColor = '';
+    }
+  }, [currentUser, isAdmin]);
+  return null;
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <Router>
         <div className="min-h-screen">
+          <AdminBodyTheme />
           <Navbar />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
