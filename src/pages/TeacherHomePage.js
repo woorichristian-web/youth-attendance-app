@@ -315,7 +315,8 @@ function GrowthSection({ classId, teacherName }) {
   const [counts, setCounts] = useState({}); // {studentId: {catId: count}}
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
-  const [newCat, setNewCat] = useState({ name: '', emoji: '⭐', points: 5 });
+  const [newCat, setNewCat] = useState({ name: '', emoji: '⭐', points: 5, desc: '' });
+  const [editCat, setEditCat] = useState(null); // 수정 중인 카드 {id, name, emoji, points, desc}
   const [selectedCat, setSelectedCat] = useState(null);
 
   useEffect(() => {
@@ -383,11 +384,35 @@ function GrowthSection({ classId, teacherName }) {
   async function addCategory() {
     if (!newCat.name.trim()) return;
     const id = `cat_${Date.now()}`;
-    const nextList = [...categories, { id, name: newCat.name.trim(), emoji: newCat.emoji, points: Number(newCat.points) || 5 }];
+    const nextList = [...categories, {
+      id,
+      name: newCat.name.trim(),
+      emoji: newCat.emoji,
+      points: Number(newCat.points) || 5,
+      desc: (newCat.desc || '').trim(),
+    }];
     const ref = doc(db, 'class_growth_categories', classId);
     await setDoc(ref, { categories: nextList, updatedBy: teacherName || '' }, { merge: true });
-    setNewCat({ name: '', emoji: '⭐', points: 5 });
+    setNewCat({ name: '', emoji: '⭐', points: 5, desc: '' });
     setAddOpen(false);
+  }
+
+  async function saveEditCat() {
+    if (!editCat || !editCat.name.trim()) return;
+    const nextList = categories.map((c) => c.id === editCat.id
+      ? {
+          ...c,
+          name: editCat.name.trim(),
+          emoji: editCat.emoji || '⭐',
+          points: Number(editCat.points) || 5,
+          desc: (editCat.desc || '').trim(),
+        }
+      : c);
+    await setDoc(doc(db, 'class_growth_categories', classId), {
+      categories: nextList,
+      updatedBy: teacherName || '',
+    }, { merge: true });
+    setEditCat(null);
   }
 
   if (!classId) {
@@ -409,13 +434,14 @@ function GrowthSection({ classId, teacherName }) {
           onClick={() => setSelectedCat(null)}
           className="text-sm text-ink-muted hover:text-ink mb-3 flex items-center gap-1"
         >
-          ← 스티커 카드로
+          ← 실천 카드 목록으로
         </button>
         <div className="card mb-4 bg-white/80">
           <div className="flex items-center gap-3">
             <div className="text-3xl">{cat.emoji}</div>
             <div className="flex-1">
               <div className="font-bold text-ink">{cat.name}</div>
+              {cat.desc && <div className="text-xs text-ink-soft mt-0.5">🎯 {cat.desc}</div>}
               <div className="text-xs text-ink-muted">스티커 한 번당 +{cat.points}P</div>
             </div>
           </div>
@@ -461,7 +487,7 @@ function GrowthSection({ classId, teacherName }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <div className="font-bold text-ink">✨ 스티커 카드</div>
+        <div className="font-bold text-ink">🌱 신앙 성장 실천 카드</div>
         <button onClick={() => setAddOpen(true)} className="text-xs px-3 py-1.5 bg-ocean-400 text-white rounded-full font-medium shadow-sm">
           + 카드 추가
         </button>
@@ -475,6 +501,12 @@ function GrowthSection({ classId, teacherName }) {
             <input className="input col-span-3" placeholder="이름 (예: 필사)" value={newCat.name} onChange={(e) => setNewCat({ ...newCat, name: e.target.value })} />
             <input className="input col-span-2" type="number" min="1" max="100" value={newCat.points} onChange={(e) => setNewCat({ ...newCat, points: e.target.value })} />
           </div>
+          <input
+            className="input mb-2"
+            placeholder="목표·내용 (예: 매일 말씀 한 장 읽기)"
+            value={newCat.desc}
+            onChange={(e) => setNewCat({ ...newCat, desc: e.target.value })}
+          />
           <div className="flex gap-2">
             <button onClick={addCategory} className="btn-primary flex-1">추가</button>
             <button onClick={() => setAddOpen(false)} className="btn-secondary flex-1">취소</button>
@@ -486,6 +518,31 @@ function GrowthSection({ classId, teacherName }) {
       <div className="space-y-2.5">
         {categories.map((cat) => {
           const totalGiven = students.reduce((sum, s) => sum + ((counts[s.id] || {})[cat.id] || 0), 0);
+
+          // 수정 모드 카드
+          if (editCat?.id === cat.id) {
+            return (
+              <div key={cat.id} className="card py-3.5 border-ocean-200">
+                <div className="font-semibold text-sm text-ink mb-2">✏️ 카드 수정</div>
+                <div className="grid grid-cols-6 gap-2 items-center mb-2">
+                  <input className="input col-span-1 text-center" maxLength={2} value={editCat.emoji} onChange={(e) => setEditCat({ ...editCat, emoji: e.target.value })} />
+                  <input className="input col-span-3" placeholder="이름" value={editCat.name} onChange={(e) => setEditCat({ ...editCat, name: e.target.value })} />
+                  <input className="input col-span-2" type="number" min="1" max="100" value={editCat.points} onChange={(e) => setEditCat({ ...editCat, points: e.target.value })} />
+                </div>
+                <input
+                  className="input mb-2"
+                  placeholder="목표·내용 (예: 매일 말씀 한 장 읽기)"
+                  value={editCat.desc}
+                  onChange={(e) => setEditCat({ ...editCat, desc: e.target.value })}
+                />
+                <div className="flex gap-2">
+                  <button onClick={saveEditCat} className="btn-primary flex-1">저장</button>
+                  <button onClick={() => setEditCat(null)} className="btn-secondary flex-1">취소</button>
+                </div>
+              </div>
+            );
+          }
+
           return (
             <div key={cat.id} className="card flex items-center gap-4 py-3.5 hover:shadow-soft transition-all">
               <button
@@ -495,6 +552,9 @@ function GrowthSection({ classId, teacherName }) {
                 <div className="text-4xl flex-shrink-0">{cat.emoji}</div>
                 <div className="min-w-0">
                   <div className="font-bold text-ink truncate">{cat.name}</div>
+                  {cat.desc && (
+                    <div className="text-xs text-ink-soft mt-0.5 truncate">🎯 {cat.desc}</div>
+                  )}
                   <div className="text-xs text-ink-muted mt-0.5">한 번당 +{cat.points}P</div>
                 </div>
                 <div className="ml-auto text-right flex-shrink-0 pr-1">
@@ -508,6 +568,15 @@ function GrowthSection({ classId, teacherName }) {
                   className="text-xs px-3 py-1.5 bg-ocean-100 text-ocean-700 rounded-full font-medium hover:bg-ocean-200/70"
                 >
                   주기
+                </button>
+                <button
+                  onClick={() => setEditCat({ id: cat.id, name: cat.name, emoji: cat.emoji || '⭐', points: cat.points || 5, desc: cat.desc || '' })}
+                  className="w-8 h-8 flex items-center justify-center text-stone-400 hover:text-ocean-600 hover:bg-ocean-50 rounded-full transition-colors"
+                  title="카드 수정"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                  </svg>
                 </button>
                 <button
                   onClick={() => removeCategory(cat.id)}
@@ -524,7 +593,7 @@ function GrowthSection({ classId, teacherName }) {
         })}
         {categories.length === 0 && (
           <div className="card text-center text-ink-muted py-6 text-sm">
-            스티커 카드가 없습니다. '+ 카드 추가'로 만들어주세요.
+            실천 카드가 없습니다. '+ 카드 추가'로 만들어주세요.
           </div>
         )}
       </div>
