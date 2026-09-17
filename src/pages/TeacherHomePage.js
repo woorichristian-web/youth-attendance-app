@@ -4,6 +4,7 @@ import { collection, getDocs, doc, onSnapshot, setDoc, getDoc, updateDoc, increm
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import AttendanceSheet from '../components/attendance/AttendanceSheet';
+import PastAttendance from '../components/dashboard/PastAttendance';
 import { getThisSunday, formatDateKo, isValidSunday } from '../utils/dateUtils';
 import { isRegistered } from '../utils/statusUtils';
 
@@ -114,6 +115,7 @@ export default function TeacherHomePage() {
 const ATTEND_SUB_TABS = [
   { id: 'check', label: '출석 체크' },
   { id: 'summary', label: '우리반 출석현황' },
+  { id: 'weekly', label: '주일별 출석현황' },
 ];
 
 function AttendSection({ classId, service, teacherName }) {
@@ -130,12 +132,12 @@ function AttendSection({ classId, service, teacherName }) {
 
   return (
     <div>
-      <div className="flex gap-1 mb-3 bg-white/60 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 mb-3 bg-white/60 rounded-xl p-1 w-fit max-w-full overflow-x-auto">
         {ATTEND_SUB_TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setSub(t.id)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
               sub === t.id ? 'bg-white text-ocean-600 shadow-sm' : 'text-ink-muted'
             }`}
           >
@@ -172,8 +174,40 @@ function AttendSection({ classId, service, teacherName }) {
       )}
 
       {sub === 'summary' && <ClassAttendanceSummary classId={classId} />}
+      {sub === 'weekly' && <WeeklyAttendanceSection />}
     </div>
   );
+}
+
+// 주일별 출석현황 — 어드민과 동일한 주별 달력 뷰 (전체 부서·반)
+function WeeklyAttendanceSection() {
+  const [students, setStudents] = useState([]);
+  const [attendance, setAttendance] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let s = false, a = false, c = false;
+    const done = () => { if (s && a && c) setLoading(false); };
+    const u1 = onSnapshot(collection(db, 'students'), (snap) => {
+      setStudents(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      s = true; done();
+    });
+    const u2 = onSnapshot(collection(db, 'attendance'), (snap) => {
+      setAttendance(snap.docs.map((d) => d.data()));
+      a = true; done();
+    });
+    const u3 = onSnapshot(collection(db, 'classes'), (snap) => {
+      setClasses(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      c = true; done();
+    });
+    return () => { u1(); u2(); u3(); };
+  }, []);
+
+  if (loading) {
+    return <div className="card text-center text-ink-muted py-8 text-sm">불러오는 중...</div>;
+  }
+  return <PastAttendance attendanceList={attendance} students={students} classes={classes} />;
 }
 
 function ClassAttendanceSummary({ classId }) {
