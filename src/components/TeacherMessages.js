@@ -156,11 +156,11 @@ export function TeacherMessageComposer() {
             <div className="text-sm mt-2 p-2 rounded-lg bg-ocean-50 text-ocean-700">{notice}</div>
           )}
           <div className="flex gap-2 mt-3">
-            <button onClick={send} disabled={busy} className="btn-primary flex-1">
-              {busy ? '처리 중...' : '보내기'}
-            </button>
             <button onClick={saveDraft} disabled={busy} className="btn-secondary flex-1">
               저장
+            </button>
+            <button onClick={send} disabled={busy} className="btn-primary flex-1">
+              {busy ? '처리 중...' : '보내기'}
             </button>
             <button
               onClick={() => { setOpen(false); setNotice(''); }}
@@ -203,65 +203,119 @@ function Pager({ page, setPage, total }) {
   );
 }
 
+// 탭 버튼 공통
+function TabButtons({ tabs, active, onSelect, accent = 'ocean' }) {
+  const on = accent === 'teal' ? 'bg-teal-600 text-white' : 'bg-ocean-400 text-white';
+  return (
+    <div className="flex gap-1 bg-white/70 border border-stone-200 rounded-xl p-1 w-fit mb-3">
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          onClick={() => onSelect(t.id)}
+          className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+            active === t.id ? on : 'text-stone-500 hover:text-stone-700'
+          }`}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ────────────────────────────────────────────────────────
-// 교사용: 주고받은 메시지 기록 — 페이지 하단 (카드 5개씩, 터치로 펼침)
+// 교사용: 주고받은 메시지 기록 — 페이지 하단 (탭 분리, 카드 5개씩, 터치로 펼침)
 // ────────────────────────────────────────────────────────
 export function TeacherMessageHistory() {
   const myMessages = useMyMessages();
+  const [tab, setTab] = useState('sent'); // sent | received
   const [page, setPage] = useState(0);
   const [expandedId, setExpandedId] = useState(null);
   const sent = myMessages.filter((m) => m.status === 'sent');
+  const received = sent.filter((m) => (m.replies || []).length > 0);
 
   if (sent.length === 0) return null;
 
-  const pageItems = sent.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const list = tab === 'sent' ? sent : received;
+  const pageItems = list.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
     <div className="mt-8">
-      <h3 className="text-sm font-bold text-ink mb-2 px-1">
-        💬 목사님과 주고받은 메시지 <span className="text-ink-muted font-normal">({sent.length})</span>
-      </h3>
+      <h3 className="text-sm font-bold text-ink mb-2 px-1">💬 목사님과 주고받은 메시지</h3>
+      <TabButtons
+        tabs={[
+          { id: 'sent', label: `보낸 메시지 (${sent.length})` },
+          { id: 'received', label: `받은 메시지 (${received.length})` },
+        ]}
+        active={tab}
+        onSelect={(t) => { setTab(t); setPage(0); setExpandedId(null); }}
+      />
+      {list.length === 0 && (
+        <div className="card text-center text-ink-muted py-6 text-sm">
+          아직 받은 메시지가 없습니다.
+        </div>
+      )}
       <div className="space-y-2">
         {pageItems.map((m) => {
           const open = expandedId === m.id;
-          const replyCount = (m.replies || []).length;
+          const replies = m.replies || [];
+          const latestReply = replies[replies.length - 1];
+          const isReceivedView = tab === 'received';
+          const previewText = isReceivedView && latestReply ? latestReply.text : m.text;
           return (
-            <div key={m.id} className="card py-3 cursor-pointer" onClick={() => setExpandedId(open ? null : m.id)}>
+            <button
+              key={m.id}
+              onClick={() => setExpandedId(open ? null : m.id)}
+              className="w-full text-left card py-3 hover:shadow-soft active:bg-ocean-50/40 transition-all"
+            >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="text-xs font-semibold text-ocean-700">나 → 목사님</span>
-                    {replyCount > 0 && (
+                    <span className={`text-xs font-semibold ${isReceivedView ? 'text-emerald-700' : 'text-ocean-700'}`}>
+                      {isReceivedView ? '목사님 → 나' : '나 → 목사님'}
+                    </span>
+                    {!isReceivedView && replies.length > 0 && (
                       <span className="text-[10px] bg-ocean-100 text-ocean-700 rounded-full px-1.5 py-0.5 font-semibold">
-                        답장 {replyCount}
+                        답장 {replies.length}
                       </span>
                     )}
                   </div>
                   <div className={`text-sm text-ink ${open ? 'whitespace-pre-wrap' : 'truncate'}`}>
-                    {m.text}
+                    {previewText}
                   </div>
                 </div>
                 <div className="flex flex-col items-end flex-shrink-0 gap-1">
-                  <span className="text-[11px] text-ink-muted">{fmt(m.sentAt)}</span>
-                  <span className="text-[11px]">
-                    {m.read ? <span className="text-emerald-600">읽음</span> : <span className="text-ink-muted">전송됨</span>}
+                  <span className="text-[11px] text-ink-muted">
+                    {fmt(isReceivedView && latestReply ? latestReply.at : m.sentAt)}
+                  </span>
+                  <span className="text-[11px] flex items-center gap-1">
+                    {!isReceivedView && (m.read
+                      ? <span className="text-emerald-600">읽음</span>
+                      : <span className="text-ink-muted">전송됨</span>)}
+                    <span className="text-ocean-400">{open ? '▲' : '▼'}</span>
                   </span>
                 </div>
               </div>
-              {open && (m.replies || []).map((r, i) => (
-                <div key={i} className="mt-2 ml-3 pl-3 border-l-2 border-ocean-200 bg-ocean-50/60 rounded-r-xl py-2 pr-2">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-xs font-semibold text-ink-soft">↩ 목사님</span>
-                    <span className="text-[11px] text-ink-muted">{fmt(r.at)}</span>
-                  </div>
-                  <div className="text-sm text-ink whitespace-pre-wrap">{r.text}</div>
+              {open && (
+                <div className="mt-2 pt-2 border-t border-ocean-100">
+                  <div className="text-[11px] font-semibold text-ocean-700 mb-0.5">나 → 목사님 · {fmt(m.sentAt)}</div>
+                  <div className="text-sm text-ink whitespace-pre-wrap">{m.text}</div>
+                  {replies.map((r, i) => (
+                    <div key={i} className="mt-2 ml-3 pl-3 border-l-2 border-emerald-200 bg-emerald-50/60 rounded-r-xl py-2 pr-2">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-xs font-semibold text-emerald-700">↩ 목사님</span>
+                        <span className="text-[11px] text-ink-muted">{fmt(r.at)}</span>
+                      </div>
+                      <div className="text-sm text-ink whitespace-pre-wrap">{r.text}</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </button>
           );
         })}
       </div>
-      <Pager page={page} setPage={setPage} total={sent.length} />
+      <Pager page={page} setPage={setPage} total={list.length} />
     </div>
   );
 }
@@ -275,6 +329,7 @@ export function AdminMessageInbox() {
   const [replyFor, setReplyFor] = useState(null); // 답장 작성 중인 메시지 id
   const [replyText, setReplyText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState('received'); // received | sent
   const [page, setPage] = useState(0);
   const [expandedId, setExpandedId] = useState(null);
 
@@ -323,19 +378,78 @@ export function AdminMessageInbox() {
 
   if (messages.length === 0) return null;
 
-  const pageItems = messages.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  // 보낸 메시지 = 내가 보낸 답장들 (최신순)
+  const sentReplies = messages
+    .flatMap((m) => (m.replies || []).map((r, i) => ({ key: `${m.id}_${i}`, parent: m, reply: r })))
+    .sort((a, b) => (b.reply.at || 0) - (a.reply.at || 0));
+
+  const list = tab === 'received' ? messages : sentReplies;
+  const pageItems = list.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
     <div className="mt-8">
       <div className="flex items-center gap-2 px-1 mb-2 font-bold text-stone-800 text-sm">
         📨 선생님 메시지함
-        <span className="text-stone-400 font-normal">({messages.length})</span>
         {unread > 0 && (
           <span className="bg-rose-500 text-white text-[11px] px-2 py-0.5 rounded-full font-semibold">
             새 메시지 {unread}
           </span>
         )}
       </div>
+      <TabButtons
+        accent="teal"
+        tabs={[
+          { id: 'received', label: `받은 메시지 (${messages.length})` },
+          { id: 'sent', label: `보낸 메시지 (${sentReplies.length})` },
+        ]}
+        active={tab}
+        onSelect={(t) => { setTab(t); setPage(0); setExpandedId(null); }}
+      />
+
+      {tab === 'sent' && (
+        <div className="space-y-2">
+          {sentReplies.length === 0 && (
+            <div className="bg-white border border-stone-200 rounded-xl shadow-sm px-4 py-6 text-center text-sm text-stone-400">
+              아직 보낸 답장이 없습니다.
+            </div>
+          )}
+          {tab === 'sent' && pageItems.map((it) => {
+            const open = expandedId === it.key;
+            return (
+              <button
+                key={it.key}
+                onClick={() => setExpandedId(open ? null : it.key)}
+                className="w-full text-left bg-white border border-stone-200 rounded-xl shadow-sm px-4 py-3 hover:border-teal-300 transition-all"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-semibold text-teal-700 mb-0.5">
+                      나 → {it.parent.fromName} 선생님
+                    </div>
+                    <div className={`text-sm text-stone-700 ${open ? 'whitespace-pre-wrap' : 'truncate'}`}>
+                      {it.reply.text}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end flex-shrink-0 gap-1">
+                    <span className="text-xs text-stone-400">{fmt(it.reply.at)}</span>
+                    <span className="text-teal-500 text-[11px]">{open ? '▲' : '▼'}</span>
+                  </div>
+                </div>
+                {open && (
+                  <div className="mt-2 pt-2 border-t border-stone-100">
+                    <div className="text-[11px] font-semibold text-stone-500 mb-0.5">
+                      원본 메시지 · {it.parent.fromName} 선생님 · {fmt(it.parent.sentAt)}
+                    </div>
+                    <div className="text-sm text-stone-600 whitespace-pre-wrap">{it.parent.text}</div>
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {tab === 'received' && (
       <div className="space-y-2">
         {pageItems.map((m) => {
           const open = expandedId === m.id;
@@ -367,7 +481,10 @@ export function AdminMessageInbox() {
                     {m.text}
                   </div>
                 </div>
-                <div className="text-xs text-stone-400 flex-shrink-0">{fmt(m.sentAt)}</div>
+                <div className="flex flex-col items-end flex-shrink-0 gap-1">
+                  <span className="text-xs text-stone-400">{fmt(m.sentAt)}</span>
+                  <span className="text-teal-500 text-[11px]">{open ? '▲' : '▼'}</span>
+                </div>
               </div>
 
               {open && (
@@ -429,7 +546,8 @@ export function AdminMessageInbox() {
           );
         })}
       </div>
-      <Pager page={page} setPage={setPage} total={messages.length} />
+      )}
+      <Pager page={page} setPage={setPage} total={list.length} />
     </div>
   );
 }
