@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, query, orderBy,
 } from 'firebase/firestore';
@@ -135,6 +135,14 @@ export default function TeacherManagement({ classes = [], onClassesChange }) {
     if (!form.name.trim()) return setError('이름을 입력하세요.');
     if (!editId && !form.email.trim()) return setError('이메일을 입력하세요.');
     if (!editId && form.password.length < 6) return setError('비밀번호는 6자 이상이어야 합니다.');
+    // 같은 이름의 교사가 이미 있으면 중복 계정 생성 방지 확인
+    if (!editId) {
+      const dup = teachers.find((t) => (t.name || '').trim() === form.name.trim());
+      if (dup && !window.confirm(
+        `'${form.name.trim()}' 이름의 교사가 이미 등록되어 있습니다 (${dup.email || '이메일 없음'}).\n` +
+        `그래도 새 계정을 추가할까요? (동명이인이 아니라면 기존 교사를 '수정'하는 것을 권장합니다)`
+      )) return;
+    }
     setSaving(true);
     setError('');
     try {
@@ -217,6 +225,16 @@ export default function TeacherManagement({ classes = [], onClassesChange }) {
     return s ? <span className={`text-xs px-2 py-0.5 rounded-full ${s.color}`}>{s.label}</span> : null;
   };
 
+  // 같은 이름의 교사 계정이 2개 이상인 경우 감지 (중복 계정 정리 안내용)
+  const dupNames = useMemo(() => {
+    const cnt = {};
+    teachers.forEach((t) => {
+      const n = (t.name || '').trim();
+      if (n) cnt[n] = (cnt[n] || 0) + 1;
+    });
+    return new Set(Object.keys(cnt).filter((n) => cnt[n] > 1));
+  }, [teachers]);
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
@@ -246,6 +264,17 @@ export default function TeacherManagement({ classes = [], onClassesChange }) {
           </button>
         )}
       </div>
+
+      {/* 중복 계정 경고 */}
+      {dupNames.size > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3 text-sm text-amber-700">
+          ⚠️ 같은 이름의 교사 계정이 2개 이상 있습니다: <b>{[...dupNames].join(', ')}</b>
+          <div className="text-xs mt-1 text-amber-600">
+            수정 시 계정이 새로 생기는 것이 아니라, 이전에 만들어진 중복 계정이 함께 표시되는 것입니다.
+            각 카드의 이메일을 확인해 실제 사용하는 계정만 남기고 나머지는 '삭제'로 정리해주세요.
+          </div>
+        </div>
+      )}
 
       {/* 교사 추가/수정 폼 */}
       {showForm && (
@@ -575,6 +604,9 @@ export default function TeacherManagement({ classes = [], onClassesChange }) {
                       </span>
                     )}
                     {statusBadge(teacher.teacherStatus || 'active')}
+                    {dupNames.has((teacher.name || '').trim()) && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⚠️ 중복 이름</span>
+                    )}
                   </div>
                   <div className="text-xs text-gray-400 mt-0.5">
                     {teacher.service} · {cls?.name || (assistCls ? `보조 배정: ${assistCls.name || `${assistCls.teacherName} 선생님반`}` : '반 없음')}
@@ -582,6 +614,9 @@ export default function TeacherManagement({ classes = [], onClassesChange }) {
                   </div>
                   {teacher.phone && (
                     <div className="text-xs text-gray-400">📱 {teacher.phone}</div>
+                  )}
+                  {teacher.email && (
+                    <div className="text-xs text-gray-400">✉️ {teacher.email}</div>
                   )}
                   {teacher.songchungYears?.length > 0 && (
                     <div className="text-xs text-gray-400">
