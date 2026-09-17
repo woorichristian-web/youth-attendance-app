@@ -115,7 +115,7 @@ export default function TeacherHomePage() {
 const ATTEND_SUB_TABS = [
   { id: 'check', label: '출석 체크' },
   { id: 'summary', label: '우리반 출석현황' },
-  { id: 'weekly', label: '주일별 출석현황' },
+  { id: 'weekly', label: '주일별 출석기록' },
 ];
 
 function AttendSection({ classId, service, teacherName }) {
