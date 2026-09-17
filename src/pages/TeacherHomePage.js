@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { collection, getDocs, doc, onSnapshot, setDoc, getDoc, updateDoc, increment } from 'firebase/firestore';
+import { collection, getDocs, doc, onSnapshot, setDoc, getDoc, updateDoc, increment, addDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import AttendanceSheet from '../components/attendance/AttendanceSheet';
@@ -362,6 +362,20 @@ function GrowthSection({ classId, teacherName }) {
     } else {
       await setDoc(ref, { [catId]: 1 });
     }
+    // 지급 기록 (어드민 실천 카드 현황의 기간 집계용)
+    try {
+      const st = students.find((s) => s.id === studentId);
+      await addDoc(collection(db, 'growth_logs'), {
+        studentId,
+        studentName: st?.name || '',
+        classId,
+        catId,
+        ts: Date.now(),
+        teacher: teacherName || '',
+      });
+    } catch (e) {
+      console.error('스티커 기록 저장 오류:', e);
+    }
   }
 
   async function resetSticker(studentId, catId) {
@@ -390,6 +404,7 @@ function GrowthSection({ classId, teacherName }) {
       emoji: newCat.emoji,
       points: Number(newCat.points) || 5,
       desc: (newCat.desc || '').trim(),
+      createdAt: Date.now(),
     }];
     const ref = doc(db, 'class_growth_categories', classId);
     await setDoc(ref, { categories: nextList, updatedBy: teacherName || '' }, { merge: true });

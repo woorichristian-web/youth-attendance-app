@@ -10,6 +10,7 @@ import TeacherManagement from '../components/admin/TeacherManagement';
 import ExcelExport from '../components/admin/ExcelExport';
 import OfficerManagement from '../components/admin/OfficerManagement';
 import DiscipleshipManagement from '../components/admin/DiscipleshipManagement';
+import GrowthBoard from '../components/admin/GrowthBoard';
 import PastAttendance from '../components/dashboard/PastAttendance';
 import RedFlagList from '../components/dashboard/RedFlagList';
 import AttendanceRateDistribution from '../components/dashboard/AttendanceRateDistribution';
@@ -361,6 +362,7 @@ const STUDENT_SUBS = [
   { id: 'attendance', label: '학생 관리' },
   { id: 'redflag', label: '장결자' },
   { id: 'discipleship', label: '신앙교육' },
+  { id: 'growth_cards', label: '실천 카드' },
   { id: 'officers', label: '임원 및 학생 사역' },
   { id: 'ecclesia', label: '에클레시아' },
 ];
@@ -413,6 +415,7 @@ function StudentsMenu() {
           {sub === 'attendance' && <StudentManagement classes={classes} hideSubTabs={true} />}
           {sub === 'redflag' && <RedFlagList attendanceList={attendance} students={students} classes={classes} />}
           {sub === 'discipleship' && <DiscipleshipManagement students={students} classes={classes} />}
+          {sub === 'growth_cards' && <GrowthBoard students={students} classes={classes} />}
           {sub === 'officers' && <OfficerManagement />}
           {sub === 'ecclesia' && <AttendanceRateDistribution students={students} attendanceList={attendance} loading={false} />}
         </>
