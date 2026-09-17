@@ -226,11 +226,18 @@ function TabButtons({ tabs, active, onSelect, accent = 'ocean' }) {
 // ────────────────────────────────────────────────────────
 // 교사용: 주고받은 메시지 기록 — 페이지 하단 (탭 분리, 카드 5개씩, 터치로 펼침)
 // ────────────────────────────────────────────────────────
-export function TeacherMessageHistory() {
+export function TeacherMessageHistory({ mode }) {
   const myMessages = useMyMessages();
-  const [tab, setTab] = useState('sent'); // sent | received
+  const [innerTab, setInnerTab] = useState('sent'); // sent | received (mode 미지정 시)
   const [page, setPage] = useState(0);
   const [expandedId, setExpandedId] = useState(null);
+  const tab = mode || innerTab;
+
+  useEffect(() => {
+    setPage(0);
+    setExpandedId(null);
+  }, [mode]);
+
   const sent = myMessages.filter((m) => m.status === 'sent');
   const received = sent.filter((m) => (m.replies || []).length > 0);
 
@@ -241,18 +248,24 @@ export function TeacherMessageHistory() {
 
   return (
     <div className="mt-8">
-      <h3 className="text-sm font-bold text-ink mb-2 px-1">💬 목사님과 주고받은 메시지</h3>
-      <TabButtons
-        tabs={[
-          { id: 'sent', label: `보낸 메시지 (${sent.length})` },
-          { id: 'received', label: `받은 메시지 (${received.length})` },
-        ]}
-        active={tab}
-        onSelect={(t) => { setTab(t); setPage(0); setExpandedId(null); }}
-      />
+      <h3 className="text-sm font-bold text-ink mb-2 px-1">
+        {mode
+          ? (tab === 'sent' ? '📤 내가 목사님께 보낸 메시지' : '📥 목사님 답장')
+          : '💬 목사님과 주고받은 메시지'}
+      </h3>
+      {!mode && (
+        <TabButtons
+          tabs={[
+            { id: 'sent', label: `보낸 메시지 (${sent.length})` },
+            { id: 'received', label: `받은 메시지 (${received.length})` },
+          ]}
+          active={tab}
+          onSelect={(t) => { setInnerTab(t); setPage(0); setExpandedId(null); }}
+        />
+      )}
       {list.length === 0 && (
         <div className="card text-center text-ink-muted py-6 text-sm">
-          아직 받은 메시지가 없습니다.
+          {tab === 'received' ? '아직 목사님 답장이 없습니다.' : '아직 보낸 메시지가 없습니다.'}
         </div>
       )}
       <div className="space-y-2">

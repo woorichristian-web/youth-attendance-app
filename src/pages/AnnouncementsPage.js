@@ -131,8 +131,9 @@ const emptyForm = () => ({
 
 export default function AnnouncementsPage() {
   const { isAdmin, isTeacher, userProfile, currentUser } = useAuth();
-  // 메시지 전송은 전호진(admin@)만 가능
-  const canSend = currentUser?.email === 'admin@songrim.church';
+  // 메시지 전송·수정·삭제는 관리자(전호진·강현미·전성배·김정나) 모두 가능
+  const canSend = isAdmin;
+  const [teacherTab, setTeacherTab] = useState('received'); // 교사 화면: received | sent
   const [announcements, setAnnouncements] = useState([]);
   const [page, setPage] = useState(0);
   const [showForm, setShowForm] = useState(false);
@@ -149,6 +150,8 @@ export default function AnnouncementsPage() {
   }, []);
 
   const visible = announcements.filter((a) => canViewAnnouncement(a, userProfile, isAdmin));
+  // 교사 화면: '받은 메시지' 탭에서만 알림 리스트 표시
+  const showAnnouncements = !isTeacher || isAdmin || teacherTab === 'received';
   const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const pageItems = visible.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
@@ -239,6 +242,26 @@ export default function AnnouncementsPage() {
     <div className="max-w-3xl mx-auto px-4 py-6">
       {/* 교사: 목사님께 메시지 보내기 */}
       {isTeacher && !isAdmin && <TeacherMessageComposer />}
+
+      {/* 교사: 받은/보낸 메시지 탭 */}
+      {isTeacher && !isAdmin && (
+        <div className="flex gap-1 mb-4 bg-white/60 rounded-xl p-1 w-fit">
+          {[
+            { id: 'received', label: '받은 메시지' },
+            { id: 'sent', label: '보낸 메시지' },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTeacherTab(t.id)}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                teacherTab === t.id ? 'bg-ocean-400 text-white shadow-sm' : 'text-ink-muted hover:text-ink'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="flex items-center justify-end mb-4">
         {canSend && (
@@ -370,7 +393,7 @@ export default function AnnouncementsPage() {
       )}
 
       {/* 알림 리스트 */}
-      {pageItems.length === 0 ? (
+      {showAnnouncements && (pageItems.length === 0 ? (
         <div className="card text-center text-stone-400 py-10">알림이 없습니다.</div>
       ) : (
         <div className="space-y-3">
@@ -435,10 +458,10 @@ export default function AnnouncementsPage() {
             );
           })}
         </div>
-      )}
+      ))}
 
       {/* 페이지네이션 */}
-      {totalPages > 1 && (
+      {showAnnouncements && totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 mt-5">
           <button
             onClick={() => setPage(Math.max(0, page - 1))}
@@ -456,7 +479,7 @@ export default function AnnouncementsPage() {
 
       {/* 하단: 주고받은 메시지 기록 */}
       {isAdmin && <AdminMessageInbox />}
-      {isTeacher && !isAdmin && <TeacherMessageHistory />}
+      {isTeacher && !isAdmin && <TeacherMessageHistory mode={teacherTab} />}
     </div>
   );
 }
