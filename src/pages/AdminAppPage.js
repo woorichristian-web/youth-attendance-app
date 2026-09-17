@@ -17,10 +17,10 @@ import WeeklyReport from '../components/admin/WeeklyReport';
 import RetreatManager from '../components/admin/RetreatManager';
 import PastAttendance from '../components/dashboard/PastAttendance';
 import RedFlagList from '../components/dashboard/RedFlagList';
-import AttendanceRateDistribution from '../components/dashboard/AttendanceRateDistribution';
 import FloatingQuickBar from '../components/admin/FloatingQuickBar';
 import { getSundaysInMonth, getThisSunday } from '../utils/dateUtils';
 import { filterExcludedSundays } from '../utils/excludedDates';
+import { SCHOOLS_WITH_ECCLESIA } from '../utils/schoolConfig';
 
 const TOP_MENUS = [
   { id: 'attendance_view', label: '출석' },
@@ -619,8 +619,77 @@ function StudentsMenu() {
           {sub === 'growth_cards' && <GrowthBoard students={students} classes={classes} />}
           {sub === 'visit_memo' && <VisitMemoBoard students={students} classes={classes} />}
           {sub === 'officers' && <OfficerManagement />}
-          {sub === 'ecclesia' && <AttendanceRateDistribution students={students} attendanceList={attendance} loading={false} />}
+          {sub === 'ecclesia' && <EcclesiaBoard students={students} classes={classes} />}
         </>
+      )}
+    </div>
+  );
+}
+
+// 에클레시아 — 학교별로 그룹핑된 참여 학생 명단
+function EcclesiaBoard({ students, classes }) {
+  const ecclesiaStudents = students.filter((s) => isRegistered(s) && s.ecclesia);
+  const schoolMap = {};
+  ecclesiaStudents.forEach((s) => {
+    const sc = s.school || '학교 미입력';
+    if (!schoolMap[sc]) schoolMap[sc] = [];
+    schoolMap[sc].push(s);
+  });
+  const schoolList = Object.entries(schoolMap)
+    .map(([school, list]) => ({
+      school,
+      list: list.sort(
+        (a, b) => (a.grade || '').localeCompare(b.grade || '') || (a.name || '').localeCompare(b.name || '', 'ko')
+      ),
+    }))
+    .sort((a, b) => a.school.localeCompare(b.school, 'ko'));
+
+  const findClassName = (classId) => {
+    const c = classes.find((cc) => cc.id === classId);
+    return c ? (c.name || `${c.teacherName} 선생님반`) : '';
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-semibold text-stone-900">✝ 에클레시아 참여 ({ecclesiaStudents.length}명)</h3>
+        <span className="text-xs text-stone-500">{schoolList.length}개 학교</span>
+      </div>
+      {schoolList.length === 0 ? (
+        <div className="bg-white border border-stone-200 rounded-xl text-center text-stone-400 py-10 text-sm">
+          에클레시아 참여 학생이 없습니다. (학생 관리에서 '✝ 에클레시아 참석'을 체크하면 여기에 표시됩니다)
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {schoolList.map(({ school, list }) => {
+            const hasOfficial = SCHOOLS_WITH_ECCLESIA.includes(school);
+            return (
+              <div key={school} className="bg-white border border-stone-200 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2 pb-2 border-b border-stone-100">
+                  <span className="font-bold text-stone-800">🏫 {school}</span>
+                  {hasOfficial && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">✝ 에클레시아</span>
+                  )}
+                  <span className="text-xs text-stone-400 ml-auto">{list.length}명</span>
+                </div>
+                <div className="space-y-1">
+                  {list.map((s) => (
+                    <div key={s.id} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-stone-700">{s.name}</span>
+                        {s.gender && <span className="text-xs text-stone-400">{s.gender}</span>}
+                        {s.grade && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-teal-50 text-teal-700">{s.grade}</span>
+                        )}
+                      </div>
+                      <span className="text-xs text-stone-400">{findClassName(s.classId)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
