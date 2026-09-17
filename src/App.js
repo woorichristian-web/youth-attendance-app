@@ -14,6 +14,8 @@ import MyClassStudentsPage from './pages/MyClassStudentsPage';
 import TeacherHomePage from './pages/TeacherHomePage';
 import TeacherMyPage from './pages/TeacherMyPage';
 import AdminAppPage from './pages/AdminAppPage';
+import RetreatApplyPage from './pages/RetreatApplyPage';
+import RetreatResultsPage from './pages/RetreatResultsPage';
 import HomeRedirect from './components/HomeRedirect';
 
 // 관리자 로그인 상태에서는 페이지 전환 중에도 body 배경을 항상 아이보리로 유지
@@ -118,6 +120,16 @@ export default function App() {
               element={
                 <ProtectedRoute adminOnly={true}>
                   <AdminAppPage />
+                </ProtectedRoute>
+              }
+            />
+            {/* 배포용 수련회 신청서 — 로그인 없이 접속 (링크 공유용) */}
+            <Route path="/retreat-apply/:formId" element={<RetreatApplyPage />} />
+            <Route
+              path="/retreat-results/:retreatId"
+              element={
+                <ProtectedRoute adminOnly={true}>
+                  <RetreatResultsPage />
                 </ProtectedRoute>
               }
             />
