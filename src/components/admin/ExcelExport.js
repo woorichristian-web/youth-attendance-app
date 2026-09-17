@@ -621,6 +621,80 @@ export default function ExcelExport({ classes, students }) {
   }
 
   // ── 전체 다운로드 (한 파일, 여러 시트) ────────────────────────
+  // 실천 카드(스티커) 받은 기록 — 부서·반·학생·카드별 개수와 지급 기간
+  async function buildGrowthRows() {
+    const [catSnap, growthSnap, logSnap] = await Promise.all([
+      getDocs(collection(db, 'class_growth_categories')),
+      getDocs(collection(db, 'student_growth')),
+      getDocs(collection(db, 'growth_logs')),
+    ]);
+    const catsByClass = {};
+    catSnap.docs.forEach((d) => {
+      if (Array.isArray(d.data().categories)) catsByClass[d.id] = d.data().categories;
+    });
+    const counts = {};
+    growthSnap.docs.forEach((d) => { counts[d.id] = d.data() || {}; });
+    const logs = logSnap.docs.map((d) => d.data());
+
+    const DEFAULT_CATS = [
+      { id: 'quiet_time', name: '말씀 묵상', points: 5 },
+      { id: 'writing', name: '필사', points: 5 },
+      { id: 'personal_goal', name: '개인 목표 달성', points: 5 },
+    ];
+
+    const rows = [];
+    const sortedClasses = [...classes].sort((a, b) =>
+      (a.service || '').localeCompare(b.service || '', 'ko') ||
+      (a.teacherName || '').localeCompare(b.teacherName || '', 'ko'));
+
+    sortedClasses.forEach((cls) => {
+      const cats = catsByClass[cls.id]?.length ? catsByClass[cls.id] : DEFAULT_CATS;
+      const members = students
+        .filter((s) => s.classId === cls.id)
+        .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'));
+      members.forEach((st) => {
+        const c = counts[st.id] || {};
+        cats.forEach((cat) => {
+          const cnt = Number(c[cat.id]) || 0;
+          if (cnt === 0) return;
+          const catLogs = logs.filter((l) => l.studentId === st.id && l.catId === cat.id && l.ts);
+          const first = catLogs.length ? Math.min(...catLogs.map((l) => l.ts)) : null;
+          const last = catLogs.length ? Math.max(...catLogs.map((l) => l.ts)) : null;
+          rows.push({
+            '부서': cls.service || '',
+            '반사': cls.teacherName || '',
+            '학생': st.name || '',
+            '카드(항목)': cat.name || '',
+            '스티커 개수': cnt,
+            '포인트': cnt * (Number(cat.points) || 0),
+            '첫 지급일': first ? format(new Date(first), 'yyyy-MM-dd') : '',
+            '마지막 지급일': last ? format(new Date(last), 'yyyy-MM-dd') : '',
+          });
+        });
+      });
+    });
+    return rows;
+  }
+
+  // 헌금 기록 — 연도별 → 주별 → 부서별 전체 내역
+  async function buildOfferingRows() {
+    const snap = await getDocs(collection(db, 'offerings'));
+    const recs = snap.docs.map((d) => d.data())
+      .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.service || '').localeCompare(b.service || ''));
+    return recs.map((r) => ({
+      '연도': (r.date || '').slice(0, 4),
+      '주일(날짜)': r.date || '',
+      '부서': r.service || '',
+      '주일헌금': Number(r.amounts?.sunday) || 0,
+      '십일조': Number(r.amounts?.tithe) || 0,
+      '감사헌금': Number(r.amounts?.thanks) || 0,
+      '선교헌금': Number(r.amounts?.mission) || 0,
+      '기타': Number(r.amounts?.etc) || 0,
+      '합계': Number(r.total) || 0,
+      '메모': r.memo || '',
+    }));
+  }
+
   async function exportAll() {
     setExporting(true);
     try {
@@ -628,11 +702,13 @@ export default function ExcelExport({ classes, students }) {
       const attSnap = await getDocs(collection(db, 'attendance'));
       const allAttList = attSnap.docs.map((d) => d.data());
 
-      const [annualRows, redFlagRows, teacherRows, accountRows] = await Promise.all([
+      const [annualRows, redFlagRows, teacherRows, accountRows, growthRows, offeringRows] = await Promise.all([
         buildAnnualAttendanceRows(),
         buildRedFlagRows(),
         buildTeacherListRows(),
         buildAccountsRows(),
+        buildGrowthRows(),
+        buildOfferingRows(),
       ]);
       const { rows: studentRows, newRowIndices: studentNewRows } = buildStudentListRows(allAttList);
 
@@ -650,6 +726,8 @@ export default function ExcelExport({ classes, students }) {
         { name: '교사정보',         rows: teacherRows },
         { name: '로그인계정',        rows: accountRows },
         { name: '에클레시아',        rows: ecclesiaRows },
+        { name: '실천카드(스티커)',  rows: growthRows },
+        { name: '헌금기록',          rows: offeringRows },
       ];
       // 시트별 고정 폭 설정
       const FIXED_WIDTHS = {
@@ -752,7 +830,7 @@ export default function ExcelExport({ classes, students }) {
       <h2 className="text-xl font-bold text-gray-800 mb-4">전체 다운로드</h2>
 
       <div className="card bg-blue-50 border-blue-200 text-sm text-blue-700 mb-4">
-        📦 8개 시트가 하나의 엑셀 파일로 다운로드됩니다:
+        📦 10개 시트가 하나의 엑셀 파일로 다운로드됩니다:
         <ul className="list-disc list-inside mt-1.5 space-y-0.5 text-blue-600">
           <li><strong>연간출석부</strong> — {yr}년 1월~{mn}월 출석 기록</li>
           <li><strong>전체학생정보</strong> — 모든 학생의 전체 정보</li>
@@ -762,6 +840,8 @@ export default function ExcelExport({ classes, students }) {
           <li><strong>교사정보</strong> — 부서별 교사 정보</li>
           <li><strong>로그인계정</strong> — 교사·관리자 이메일/기본 비밀번호</li>
           <li><strong>에클레시아</strong> — 학교별 그룹핑된 참여 학생 명단</li>
+          <li><strong>실천카드(스티커)</strong> — 반·학생·카드별 스티커 개수와 지급 기간</li>
+          <li><strong>헌금기록</strong> — 연도별·주별·부서별 헌금 내역</li>
         </ul>
       </div>
 
