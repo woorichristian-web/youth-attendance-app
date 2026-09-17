@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, doc, onSnapshot, addDoc, setDoc, updateDoc, deleteDoc, deleteField } from 'firebase/firestore';
+import { collection, doc, onSnapshot, addDoc, setDoc, updateDoc, deleteDoc, deleteField, arrayUnion } from 'firebase/firestore';
 import { Link } from 'react-router-dom';
 import { db } from '../../firebase';
 
@@ -52,6 +52,35 @@ export default function RetreatManager({ students, classes }) {
   const myApps = applications
     .filter((a) => a.retreatId === selectedId)
     .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+  // 신청서(설문) 응답이 들어오면 명단에서 이름이 일치하는 학생을 자동으로 '신청' 체크
+  // - 처리한 응답 id는 retreats.processedAppIds에 기록 → 관리자가 수동으로 해제해도 다시 체크되지 않음
+  // - 동명이인(같은 이름 학생 2명 이상)은 잘못 체크될 수 있어 자동 처리하지 않음
+  useEffect(() => {
+    if (!retreat) return;
+    const processed = retreat.processedAppIds || [];
+    const newApps = myApps.filter((a) => a.audience === 'student' && !processed.includes(a.id));
+    if (newApps.length === 0) return;
+
+    const updates = {};
+    newApps.forEach((a) => {
+      const nm = (a.name || '').trim();
+      if (!nm) return;
+      const matches = students.filter(
+        (s) => (s.name || '').trim() === nm && (!a.service || s.service === a.service)
+      );
+      if (matches.length !== 1) return;
+      const sid = matches[0].id;
+      const cur = retreat.participants?.[sid] || {};
+      if (!cur.applied) updates[`participants.${sid}`] = { ...cur, applied: true, viaForm: true };
+    });
+
+    updateDoc(doc(db, 'retreats', retreat.id), {
+      ...updates,
+      processedAppIds: arrayUnion(...newApps.map((a) => a.id)),
+    }).catch(console.error);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retreat, myApps, students]);
 
   // 기본 정보 저장 (이미 만든 신청서에도 최신 정보 반영)
   async function saveInfo() {
@@ -348,6 +377,9 @@ export default function RetreatManager({ students, classes }) {
                           <span className="text-sm text-slate-700 min-w-0 truncate">
                             {s.name}
                             {s.grade && <span className="text-xs text-slate-400 ml-1.5">{s.grade}</span>}
+                            {st.applied && st.viaForm && (
+                              <span className="text-[10px] text-blue-500 ml-1.5 font-medium">📝 설문신청</span>
+                            )}
                           </span>
                           <div className="flex gap-1.5 flex-shrink-0">
                             <ToggleChip
