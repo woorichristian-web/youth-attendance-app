@@ -548,7 +548,7 @@ const ADMIN_OFFICE_SUBS = [
   { id: 'sunday_report', label: '주일보고' },
   { id: 'offering', label: '헌금' },
   { id: 'retreat', label: '수련회' },
-  { id: 'data_download', label: '데이터다운로드' },
+  { id: 'data_download', label: '전체 시트 다운로드' },
 ];
 
 function AdminOfficeMenu() {
