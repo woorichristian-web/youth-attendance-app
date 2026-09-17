@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
-import { SCHOOLS_WITH_ECCLESIA } from '../utils/schoolConfig';
+import { hasEcclesia, normalizeSchool } from '../utils/schoolConfig';
 
 const TABS = ['임원', '예배팀', '찬양팀', '에클레시아'];
 
@@ -70,7 +70,8 @@ export default function StudentDashboardPage() {
   const ecclesiaStudents = students.filter((s) => s.ecclesia);
   const ecclesiaSchoolMap = {};
   ecclesiaStudents.forEach((s) => {
-    const sc = s.school || '학교 미입력';
+    // '판교중'과 '판교중학교' 같은 표기 차이를 같은 학교로 묶는다
+    const sc = normalizeSchool(s.school) || '학교 미입력';
     if (!ecclesiaSchoolMap[sc]) ecclesiaSchoolMap[sc] = [];
     ecclesiaSchoolMap[sc].push(s);
   });
@@ -226,7 +227,7 @@ export default function StudentDashboardPage() {
           ) : (
             <div className="space-y-3">
               {ecclesiaSchoolList.map(({ school, list }) => {
-                const hasOfficial = SCHOOLS_WITH_ECCLESIA.includes(school);
+                const hasOfficial = hasEcclesia(school);
                 return (
                   <div key={school} className="card">
                     <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">

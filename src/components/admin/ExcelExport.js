@@ -7,6 +7,7 @@ import { getSundaysInMonth } from '../../utils/dateUtils';
 import { calcRate } from '../../utils/attendanceUtils';
 import { isRegistered } from '../../utils/statusUtils';
 import { RED_FLAG_THRESHOLD, calcAvgMonthlyRate, getEffectiveJoinDate } from '../../utils/redFlag';
+import { normalizeSchool } from '../../utils/schoolConfig';
 
 // 내용이 있는 셀에만 테두리 적용. 빈 셀은 테두리 없음 + 그리드라인 숨김.
 const BORDER_STYLE = {
@@ -401,10 +402,10 @@ export default function ExcelExport({ classes, students }) {
     };
     const GRADE_ORDER = ['중1', '중2', '중3', '고1', '고2', '고3'];
 
-    // 학교별로 그룹핑
+    // 학교별로 그룹핑 ('판교중'과 '판교중학교' 같은 표기 차이는 같은 학교로 묶음)
     const bySchool = {};
     students.filter((s) => s.ecclesia).forEach((s) => {
-      const key = s.school || '(학교 미입력)';
+      const key = normalizeSchool(s.school) || '(학교 미입력)';
       if (!bySchool[key]) bySchool[key] = [];
       bySchool[key].push(s);
     });

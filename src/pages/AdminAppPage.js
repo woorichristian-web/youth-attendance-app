@@ -20,7 +20,7 @@ import RedFlagList from '../components/dashboard/RedFlagList';
 import FloatingQuickBar from '../components/admin/FloatingQuickBar';
 import { getSundaysInMonth, getThisSunday } from '../utils/dateUtils';
 import { filterExcludedSundays } from '../utils/excludedDates';
-import { SCHOOLS_WITH_ECCLESIA } from '../utils/schoolConfig';
+import { hasEcclesia, normalizeSchool } from '../utils/schoolConfig';
 
 const TOP_MENUS = [
   { id: 'attendance_view', label: '출석' },
@@ -631,7 +631,8 @@ function EcclesiaBoard({ students, classes }) {
   const ecclesiaStudents = students.filter((s) => isRegistered(s) && s.ecclesia);
   const schoolMap = {};
   ecclesiaStudents.forEach((s) => {
-    const sc = s.school || '학교 미입력';
+    // '판교중'과 '판교중학교' 같은 표기 차이를 같은 학교로 묶는다
+    const sc = normalizeSchool(s.school) || '학교 미입력';
     if (!schoolMap[sc]) schoolMap[sc] = [];
     schoolMap[sc].push(s);
   });
@@ -662,7 +663,7 @@ function EcclesiaBoard({ students, classes }) {
       ) : (
         <div className="space-y-3">
           {schoolList.map(({ school, list }) => {
-            const hasOfficial = SCHOOLS_WITH_ECCLESIA.includes(school);
+            const hasOfficial = hasEcclesia(school);
             return (
               <div key={school} className="bg-white border border-stone-200 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2 pb-2 border-b border-stone-100">

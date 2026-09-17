@@ -11,7 +11,18 @@ export const SCHOOLS_WITH_ECCLESIA = [
   '소명고', '양영디고', '분당중앙고', '동탄고',
 ];
 
+// 학교명 정규화 — '판교중학교'와 '판교중', '휘문중학교'와 '휘문중'을 같은 학교로 취급
+// 규칙: 공백 제거 후 끝의 '중학교/고등학교/초등학교'를 '중/고/초'로 축약, '여자중/여자고'는 '여중/여고'로
+export function normalizeSchool(name) {
+  if (!name) return '';
+  let n = String(name).trim().replace(/\s+/g, '');
+  n = n.replace(/(중|고|초)등?학교$/, '$1');
+  n = n.replace(/여자(중|고)$/, '여$1');
+  return n;
+}
+
 export function hasEcclesia(schoolName) {
   if (!schoolName) return false;
-  return SCHOOLS_WITH_ECCLESIA.includes(schoolName.trim());
+  const n = normalizeSchool(schoolName);
+  return SCHOOLS_WITH_ECCLESIA.some((s) => normalizeSchool(s) === n);
 }

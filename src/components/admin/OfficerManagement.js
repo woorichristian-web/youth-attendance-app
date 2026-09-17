@@ -27,10 +27,10 @@ export default function OfficerManagement() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
 
-  // form[service][role] = studentId, form[service].praise = "이름1, 이름2"
+  // form[service][role] = studentId, form[service].praise/worship = "이름1, 이름2"
   const [form, setForm] = useState({
-    '1부': { 회장: '', 부회장: '', 총무: '', praise: '' },
-    '2부': { 회장: '', 부회장: '', 총무: '', praise: '' },
+    '1부': { 회장: '', 부회장: '', 총무: '', praise: '', worship: '' },
+    '2부': { 회장: '', 부회장: '', 총무: '', praise: '', worship: '' },
   });
 
   async function loadStudents() {
@@ -49,31 +49,23 @@ export default function OfficerManagement() {
   useEffect(() => {
     if (students.length === 0) return;
     const next = {
-      '1부': { 회장: '', 부회장: '', 총무: '', praise: '' },
-      '2부': { 회장: '', 부회장: '', 총무: '', praise: '' },
+      '1부': { 회장: '', 부회장: '', 총무: '', praise: '', worship: '' },
+      '2부': { 회장: '', 부회장: '', 총무: '', praise: '', worship: '' },
     };
+    const inDept = (s, dept) =>
+      (s.ministryTeams || []).some((m) => {
+        if (Number(m.year) !== Number(year)) return false;
+        const depts = m.departments || (m.department ? [m.department] : []);
+        return depts.includes(dept);
+      });
     for (const svc of SERVICES) {
       const svcStudents = students.filter((s) => s.service === svc);
       for (const role of OFFICER_ROLES) {
-        const found = svcStudents.find((s) =>
-          (s.ministryTeams || []).some((m) => {
-            if (Number(m.year) !== Number(year)) return false;
-            const depts = m.departments || (m.department ? [m.department] : []);
-            return depts.includes(role);
-          })
-        );
+        const found = svcStudents.find((s) => inDept(s, role));
         if (found) next[svc][role] = found.id;
       }
-      const praiseNames = svcStudents
-        .filter((s) =>
-          (s.ministryTeams || []).some((m) => {
-            if (Number(m.year) !== Number(year)) return false;
-            const depts = m.departments || (m.department ? [m.department] : []);
-            return depts.includes('찬양팀');
-          })
-        )
-        .map((s) => s.name);
-      next[svc].praise = praiseNames.join(', ');
+      next[svc].praise = svcStudents.filter((s) => inDept(s, '찬양팀')).map((s) => s.name).join(', ');
+      next[svc].worship = svcStudents.filter((s) => inDept(s, '예배팀')).map((s) => s.name).join(', ');
     }
     setForm(next);
   }, [year, students]);
@@ -114,22 +106,24 @@ export default function OfficerManagement() {
         for (const role of OFFICER_ROLES) {
           addRole(form[svc][role], role);
         }
-        const names = (form[svc].praise || '')
-          .split(/[,\n]/)
-          .map((n) => n.trim())
-          .filter(Boolean);
-        for (const n of names) {
-          const found = findByName(n, svc);
-          if (!found) {
-            missing.push(`${svc} 찬양팀 "${n}"`);
-            continue;
+        for (const [field, dept] of [['praise', '찬양팀'], ['worship', '예배팀']]) {
+          const names = (form[svc][field] || '')
+            .split(/[,\n]/)
+            .map((n) => n.trim())
+            .filter(Boolean);
+          for (const n of names) {
+            const found = findByName(n, svc);
+            if (!found) {
+              missing.push(`${svc} ${dept} "${n}"`);
+              continue;
+            }
+            addRole(found.id, dept);
           }
-          addRole(found.id, '찬양팀');
         }
       }
 
       // 각 학생 문서의 ministryTeams[year] 를 재구성해서 배치 업데이트
-      const MANAGED = new Set([...OFFICER_ROLES, '찬양팀']);
+      const MANAGED = new Set([...OFFICER_ROLES, '찬양팀', '예배팀']);
       const batch = writeBatch(db);
       let updates = 0;
 
@@ -185,7 +179,7 @@ export default function OfficerManagement() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h2 className="text-xl font-bold text-gray-800">👑 임원 학생 & 찬양팀</h2>
+        <h2 className="text-xl font-bold text-gray-800">👑 임원 학생 & 찬양팀·예배팀</h2>
         <div className="flex items-center gap-2">
           <label className="text-sm text-gray-600">연도</label>
           <select
@@ -244,7 +238,7 @@ export default function OfficerManagement() {
                 ))}
               </div>
 
-              <div>
+              <div className="mb-3">
                 <label className="label">
                   🎤 찬양팀 <span className="text-xs text-gray-400">(이름을 콤마로 구분, 예: 홍길동, 김철수, 이영희)</span>
                 </label>
@@ -257,6 +251,24 @@ export default function OfficerManagement() {
                     setForm({
                       ...form,
                       [svc]: { ...form[svc], praise: e.target.value },
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="label">
+                  🙏 예배팀 <span className="text-xs text-gray-400">(이름을 콤마로 구분)</span>
+                </label>
+                <textarea
+                  className="input"
+                  rows={3}
+                  placeholder="이름1, 이름2, 이름3"
+                  value={form[svc].worship}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      [svc]: { ...form[svc], worship: e.target.value },
                     })
                   }
                 />
