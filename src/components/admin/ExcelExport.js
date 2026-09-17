@@ -697,6 +697,7 @@ export default function ExcelExport({ classes, students }) {
       const newFamilyRows = buildNewFamilyRows();
 
       const wb = XLSX.utils.book_new();
+      // 새 시트는 반드시 '로그인계정' 앞에 추가할 것 — 로그인계정 탭은 항상 맨 마지막 유지
       const sheets = [
         { name: '연간출석부',       rows: annualRows },
         { name: '전체학생정보',      rows: studentRows },
@@ -704,9 +705,9 @@ export default function ExcelExport({ classes, students }) {
         { name: '임원&사역팀',       rows: officerRows },
         { name: '장결자',           rows: redFlagRows },
         { name: '교사정보',         rows: teacherRows },
-        { name: '로그인계정',        rows: accountRows },
         { name: '에클레시아',        rows: ecclesiaRows },
         { name: '실천카드(스티커)',  rows: growthRows },
+        { name: '로그인계정',        rows: accountRows },
       ];
       // 시트별 고정 폭 설정
       const FIXED_WIDTHS = {
@@ -817,9 +818,9 @@ export default function ExcelExport({ classes, students }) {
           <li><strong>임원&사역팀</strong> — {yr}년 부서별 회장/부회장/총무/찬양팀 명단</li>
           <li><strong>장결자</strong> — 월평균 출석률 {RED_FLAG_THRESHOLD}% 미만 학생</li>
           <li><strong>교사정보</strong> — 부서별 교사 정보</li>
-          <li><strong>로그인계정</strong> — 교사·관리자 이메일/기본 비밀번호</li>
           <li><strong>에클레시아</strong> — 학교별 그룹핑된 참여 학생 명단</li>
           <li><strong>실천카드(스티커)</strong> — 반·학생·카드별 스티커 개수와 지급 기간</li>
+          <li><strong>로그인계정</strong> — 교사·관리자 이메일/기본 비밀번호 (항상 맨 마지막)</li>
         </ul>
         <p className="mt-2 text-xs text-blue-500">
           💡 헌금 내역은 목회행정 → 헌금 탭의 "헌금 데이터 다운받기" 버튼에서 별도로 받을 수 있습니다.
