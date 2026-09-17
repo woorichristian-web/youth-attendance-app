@@ -26,6 +26,8 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
+    // 직접 로그아웃한 경우, 로그인 페이지에서 자동 로그인이 곧바로 다시 실행되지 않도록 표시
+    try { sessionStorage.setItem('songrim_skip_autologin', '1'); } catch { /* 무시 */ }
     return signOut(auth);
   }
 
