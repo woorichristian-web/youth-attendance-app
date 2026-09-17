@@ -676,6 +676,26 @@ export default function ExcelExport({ classes, students }) {
     return rows;
   }
 
+  // 심방 메모 — 날짜순 전체 심방 기록
+  async function buildVisitMemoRows() {
+    const snap = await getDocs(collection(db, 'visit_memos'));
+    return snap.docs
+      .map((d) => d.data())
+      .sort((a, b) =>
+        (a.date || '').localeCompare(b.date || '') ||
+        (a.studentName || '').localeCompare(b.studentName || '', 'ko'))
+      .map((m) => ({
+        '날짜': m.date || '',
+        '부서': m.service || '',
+        '반': m.className || '',
+        '담임': m.teacherName || '',
+        '학년': m.grade || '',
+        '학생': m.studentName || '',
+        '심방 내용': m.memo || '',
+        '작성자': m.author || '',
+      }));
+  }
+
   async function exportAll() {
     setExporting(true);
     try {
@@ -683,12 +703,13 @@ export default function ExcelExport({ classes, students }) {
       const attSnap = await getDocs(collection(db, 'attendance'));
       const allAttList = attSnap.docs.map((d) => d.data());
 
-      const [annualRows, redFlagRows, teacherRows, accountRows, growthRows] = await Promise.all([
+      const [annualRows, redFlagRows, teacherRows, accountRows, growthRows, visitMemoRows] = await Promise.all([
         buildAnnualAttendanceRows(),
         buildRedFlagRows(),
         buildTeacherListRows(),
         buildAccountsRows(),
         buildGrowthRows(),
+        buildVisitMemoRows(),
       ]);
       const { rows: studentRows, newRowIndices: studentNewRows } = buildStudentListRows(allAttList);
 
@@ -707,17 +728,19 @@ export default function ExcelExport({ classes, students }) {
         { name: '교사정보',         rows: teacherRows },
         { name: '에클레시아',        rows: ecclesiaRows },
         { name: '실천카드(스티커)',  rows: growthRows },
+        { name: '심방메모',          rows: visitMemoRows },
         { name: '로그인계정',        rows: accountRows },
       ];
       // 시트별 고정 폭 설정
       const FIXED_WIDTHS = {
         '전체학생정보': { '특이사항': 40, '메모(새친구팀)': 40, '가족사항': 40, '주소': 40 },
         '새친구 관리 시트': { '메모 by 새친구팀': 40, '가족사항': 40, '주소': 40 },
+        '심방메모': { '심방 내용': 50 },
       };
       // 자동 줄바꿈(wrap text)을 켤 컬럼
       const WRAP_COLS = new Set([
         '특이사항', '메모(새친구팀)', '메모 by 새친구팀', '가족사항',
-        '비고', '주소', '학교', '교회 내 지인', '교역자심방',
+        '비고', '주소', '학교', '교회 내 지인', '교역자심방', '심방 내용',
       ]);
       // 가운데 정렬에서 제외 (좌측 정렬 유지)
       const LEFT_ALIGN_COLS = new Set(['주소', '특이사항']);
@@ -810,7 +833,7 @@ export default function ExcelExport({ classes, students }) {
       <h2 className="text-xl font-bold text-gray-800 mb-4">전체 다운로드</h2>
 
       <div className="card bg-blue-50 border-blue-200 text-sm text-blue-700 mb-4">
-        📦 9개 시트가 하나의 엑셀 파일로 다운로드됩니다:
+        📦 10개 시트가 하나의 엑셀 파일로 다운로드됩니다:
         <ul className="list-disc list-inside mt-1.5 space-y-0.5 text-blue-600">
           <li><strong>연간출석부</strong> — {yr}년 1월~{mn}월 출석 기록</li>
           <li><strong>전체학생정보</strong> — 모든 학생의 전체 정보</li>
@@ -820,6 +843,7 @@ export default function ExcelExport({ classes, students }) {
           <li><strong>교사정보</strong> — 부서별 교사 정보</li>
           <li><strong>에클레시아</strong> — 학교별 그룹핑된 참여 학생 명단</li>
           <li><strong>실천카드(스티커)</strong> — 반·학생·카드별 스티커 개수와 지급 기간</li>
+          <li><strong>심방메모</strong> — 날짜별 학생 심방 기록</li>
           <li><strong>로그인계정</strong> — 교사·관리자 이메일/기본 비밀번호 (항상 맨 마지막)</li>
         </ul>
         <p className="mt-2 text-xs text-blue-500">
