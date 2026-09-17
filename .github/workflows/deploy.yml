@@ -1,8 +1,8 @@
 name: Deploy to Firebase Hosting
 
+# 자동 배포 비활성화됨 (2026-09-17): 실서비스가 다른 작업 공간에서 직접 배포되고 있어
+# 푸시로 인한 자동 배포가 최신 상태를 덮어쓰는 것을 방지. 수동 실행(workflow_dispatch)만 허용.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 jobs:
