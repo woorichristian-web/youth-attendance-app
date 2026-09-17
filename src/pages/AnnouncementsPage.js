@@ -6,8 +6,8 @@ import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 
 export const TARGET_OPTIONS = [
-  { value: '전체',   label: '전체',     color: 'bg-gray-100 text-gray-700' },
-  { value: '교사',   label: '교사알림', color: 'bg-blue-100 text-blue-700' },
+  { value: '전체',   label: '전체',     color: 'bg-stone-100 text-stone-700' },
+  { value: '교사',   label: '교사알림', color: 'bg-teal-100 text-teal-700' },
   { value: '스텝',   label: '스텝알림', color: 'bg-green-100 text-green-700' },
   { value: '찬양팀', label: '찬양팀알림', color: 'bg-purple-100 text-purple-700' },
   { value: '행정',   label: '행정알림', color: 'bg-amber-100 text-amber-700' },
@@ -129,7 +129,9 @@ const emptyForm = () => ({
 });
 
 export default function AnnouncementsPage() {
-  const { isAdmin, userProfile } = useAuth();
+  const { isAdmin, userProfile, currentUser } = useAuth();
+  // 메시지 전송은 전호진(admin@)만 가능
+  const canSend = currentUser?.email === 'admin@songrim.church';
   const [announcements, setAnnouncements] = useState([]);
   const [page, setPage] = useState(0);
   const [showForm, setShowForm] = useState(false);
@@ -234,10 +236,9 @@ export default function AnnouncementsPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-800">📢 게시판</h1>
-        {isAdmin && (
-          <button onClick={openAdd} className="btn-primary">+ 게시글 추가</button>
+      <div className="flex items-center justify-end mb-4">
+        {canSend && (
+          <button onClick={openAdd} className="btn-primary">+ 메시지 전송하기</button>
         )}
       </div>
 
@@ -259,7 +260,7 @@ export default function AnnouncementsPage() {
                       className={`flex-1 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
                         form.headerTag === o.value
                           ? 'border-red-500 bg-red-50 text-red-700'
-                          : 'border-gray-200 text-gray-500'
+                          : 'border-stone-200 text-stone-500'
                       }`}>
                       {o.label}
                     </button>
@@ -280,8 +281,8 @@ export default function AnnouncementsPage() {
                       onClick={() => setForm({ ...form, target: o.value })}
                       className={`py-2 rounded-lg border-2 text-sm font-medium transition-all ${
                         form.target === o.value
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 text-gray-500'
+                          ? 'border-teal-500 bg-teal-50 text-teal-700'
+                          : 'border-stone-200 text-stone-500'
                       }`}>
                       {o.label}
                     </button>
@@ -297,8 +298,8 @@ export default function AnnouncementsPage() {
                     onClick={() => setForm({ ...form, scheduleMode: 'now' })}
                     className={`flex-1 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
                       form.scheduleMode === 'now'
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 text-gray-500'
+                        ? 'border-teal-500 bg-teal-50 text-teal-700'
+                        : 'border-stone-200 text-stone-500'
                     }`}>
                     즉시 발송
                   </button>
@@ -306,8 +307,8 @@ export default function AnnouncementsPage() {
                     onClick={() => setForm({ ...form, scheduleMode: 'scheduled' })}
                     className={`flex-1 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
                       form.scheduleMode === 'scheduled'
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 text-gray-500'
+                        ? 'border-teal-500 bg-teal-50 text-teal-700'
+                        : 'border-stone-200 text-stone-500'
                     }`}>
                     예약 발송
                   </button>
@@ -329,7 +330,7 @@ export default function AnnouncementsPage() {
                   ))}
                 </select>
                 {form.recurrence !== 'none' && (
-                  <p className="text-xs text-blue-600 mt-1">
+                  <p className="text-xs text-teal-600 mt-1">
                     🔁 {recurrenceLabel(form.recurrence)} 반복 — 시작 시점 기준으로 자동 재게시됩니다.
                   </p>
                 )}
@@ -341,14 +342,14 @@ export default function AnnouncementsPage() {
                   value={form.durationDays}
                   onChange={(e) => setForm({ ...form, durationDays: e.target.value })}
                   placeholder="7" />
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-stone-400 mt-1">
                   한 번 노출되는 기간. 반복 설정 시 매 주기마다 이 기간만큼 표시됩니다.
                 </p>
               </div>
 
               <div>
                 <label className="label">내용 *</label>
-                <textarea className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 resize-none"
+                <textarea className="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-teal-500 resize-none"
                   rows={6} value={form.body}
                   onChange={(e) => setForm({ ...form, body: e.target.value })}
                   placeholder="알림 내용을 입력하세요." />
@@ -366,7 +367,7 @@ export default function AnnouncementsPage() {
 
       {/* 알림 리스트 */}
       {pageItems.length === 0 ? (
-        <div className="card text-center text-gray-400 py-10">알림이 없습니다.</div>
+        <div className="card text-center text-stone-400 py-10">알림이 없습니다.</div>
       ) : (
         <div className="space-y-3">
           {pageItems.map((a) => {
@@ -379,9 +380,9 @@ export default function AnnouncementsPage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     {targetBadge(a.target)}
                     {pending && <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">예약</span>}
-                    {expired && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-200 text-gray-500">만료</span>}
+                    {expired && <span className="text-xs px-2 py-0.5 rounded-full bg-stone-200 text-stone-500">만료</span>}
                     {a.recurrence && a.recurrence !== 'none' && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">
                         🔁 {recurrenceLabel(a.recurrence)}
                       </span>
                     )}
@@ -390,19 +391,19 @@ export default function AnnouncementsPage() {
                         [{a.headerTag}]
                       </span>
                     )}
-                    <span className="font-bold text-gray-800">{a.title}</span>
+                    <span className="font-bold text-stone-900">{a.title}</span>
                   </div>
-                  {isAdmin && (
+                  {canSend && (
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button onClick={() => openEdit(a)}
-                        className="text-xs text-blue-600 hover:text-blue-800">수정</button>
+                        className="text-xs text-teal-600 hover:text-teal-800">수정</button>
                       <button onClick={() => handleDelete(a.id)}
                         className="text-xs text-red-400 hover:text-red-600">삭제</button>
                     </div>
                   )}
                 </div>
-                <p className="text-sm text-gray-700 whitespace-pre-wrap mb-2">{a.body}</p>
-                <div className="text-xs text-gray-400 flex items-center gap-3 flex-wrap">
+                <p className="text-sm text-stone-700 whitespace-pre-wrap mb-2">{a.body}</p>
+                <div className="text-xs text-stone-400 flex items-center gap-3 flex-wrap">
                   <span>👤 {a.createdBy || '관리자'}</span>
                   {a.publishAt && (
                     <span>
@@ -419,7 +420,7 @@ export default function AnnouncementsPage() {
                   )}
                   {a.durationDays && <span>· {a.durationDays}일 노출</span>}
                   {a.updatedAt && (
-                    <span className="text-gray-400">
+                    <span className="text-stone-400">
                       ✏️ {new Date(a.updatedAt.seconds * 1000).toLocaleString('ko-KR', {
                         month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
                       })} 수정
@@ -438,13 +439,13 @@ export default function AnnouncementsPage() {
           <button
             onClick={() => setPage(Math.max(0, page - 1))}
             disabled={page === 0}
-            className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-sm disabled:opacity-40"
+            className="px-3 py-1.5 rounded-lg bg-stone-100 text-stone-700 text-sm disabled:opacity-40"
           >이전</button>
-          <span className="text-sm text-gray-500">{page + 1} / {totalPages}</span>
+          <span className="text-sm text-stone-500">{page + 1} / {totalPages}</span>
           <button
             onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
             disabled={page >= totalPages - 1}
-            className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-sm disabled:opacity-40"
+            className="px-3 py-1.5 rounded-lg bg-stone-100 text-stone-700 text-sm disabled:opacity-40"
           >다음</button>
         </div>
       )}

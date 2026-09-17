@@ -53,26 +53,15 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
-  // 관리자로 인정하는 계정 (전호진·강현미·전성배·김정나)
-  const ADMIN_EMAILS = [
-    'admin@songrim.church',
-    'leader1@songrim.church',
-    'leader2@songrim.church',
-    'admin2@songrim.church',
-  ];
-  const isAdmin =
-    userProfile?.role === 'admin' ||
-    ADMIN_EMAILS.includes((currentUser?.email || '').toLowerCase());
-
   const value = {
     currentUser,
     userProfile,
     login,
     logout,
-    isAdmin,
+    isAdmin: userProfile?.role === 'admin',
     isTeacher: userProfile?.role === 'teacher',
-    canRegisterStudents: isAdmin || !!userProfile?.canRegisterStudents,
-    isLimited: !isAdmin && !!userProfile?.limitedAccess,
+    canRegisterStudents: userProfile?.role === 'admin' || !!userProfile?.canRegisterStudents,
+    isLimited: !!userProfile?.limitedAccess,
   };
 
   return (

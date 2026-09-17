@@ -6,6 +6,8 @@ import useAnnouncementPush from '../hooks/useAnnouncementPush';
 
 const ICONS = {
   '/teacher-home': '🏠',
+  '/my-page': '👤',
+  '/admin-home': '🏠',
   '/announcements': '📢',
   '/attendance': '✅',
   '/dashboard': '📊',
@@ -15,6 +17,10 @@ const ICONS = {
 
 export default function Navbar() {
   const { currentUser, userProfile, logout, isAdmin, isLimited, isTeacher } = useAuth();
+  // 관리자는 민트/틸, 나머지는 오션블루
+  const A = isAdmin
+    ? { active: 'bg-teal-600 text-white shadow-sm', hover: 'hover:bg-teal-50', chip: 'bg-teal-100 text-teal-700', btn: 'bg-teal-600 hover:bg-teal-700' }
+    : { active: 'bg-ocean-400 text-white shadow-sm', hover: 'hover:bg-ocean-100', chip: 'bg-ocean-100 text-ocean-700', btn: 'bg-ocean-400 hover:bg-ocean-500' };
   const navigate = useNavigate();
   const location = useLocation();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -42,38 +48,40 @@ export default function Navbar() {
 
   const navLinks = isLimited
     ? [
-        { to: '/announcements', label: '공지 · 알림', icon: '📢' },
-        { to: '/students', label: '사역팀', icon: '🙏' },
+        { to: '/announcements', label: '메시지' },
+        { to: '/students', label: '사역팀' },
       ]
     : isAdmin
     ? [
-        { to: '/admin-home', label: '홈', icon: '🏠', menu: '' },
-        { to: '/admin-home?m=attendance_view', label: '출석현황', icon: '✅', menu: 'attendance_view' },
-        { to: '/admin-home?m=students', label: '학생', icon: '🎓', menu: 'students' },
-        { to: '/admin-home?m=teachers', label: '선생님', icon: '👩‍🏫', menu: 'teachers' },
-        { to: '/admin-home?m=sunday_report', label: '주일보고', icon: '📋', menu: 'sunday_report' },
-        { to: '/admin-home?m=offering', label: '헌금', icon: '💰', menu: 'offering' },
-        { to: '/admin-home?m=retreat', label: '수련회', icon: '⛺', menu: 'retreat' },
-        { to: '/admin-home?m=settings', label: '설정', icon: '🔐', menu: 'settings' },
-        { to: '/announcements', label: '공지·알림', icon: '📢' },
+        { to: '/admin-home', label: '홈' },
+        { to: '/admin-home?m=attendance_view', label: '출석현황' },
+        { to: '/admin-home?m=students', label: '학생' },
+        { to: '/admin-home?m=teachers', label: '선생님' },
+        { to: '/admin-home?m=sunday_report', label: '주일보고' },
+        { to: '/admin-home?m=offering', label: '헌금' },
+        { to: '/admin-home?m=retreat', label: '수련회' },
+        { to: '/announcements', label: '메시지' },
+      ]
+    : isTeacher
+    ? [
+        { to: '/teacher-home', label: '홈' },
+        { to: '/teacher-home?tab=growth', label: '제자성장' },
+        { to: '/teacher-home?tab=songcheong', label: '송청' },
+        { to: '/announcements', label: '메시지' },
+        { to: '/my-page', label: '마이페이지' },
       ]
     : [
-        { to: '/teacher-home?tab=attend', label: '출석', icon: '✅', tab: 'attend' },
-        { to: '/teacher-home?tab=growth', label: '성장', icon: '🌱', tab: 'growth' },
-        { to: '/teacher-home?tab=songcheong', label: '송청', icon: '🙏', tab: 'songcheong' },
-        { to: '/my-page', label: '마이페이지', icon: '👤' },
+        { to: '/announcements', label: '메시지' },
       ];
 
-  const currentTab = new URLSearchParams(location.search).get('tab') || 'attend';
-  const currentMenu = new URLSearchParams(location.search).get('m') || '';
-  const isActive = (link) => {
-    if (link.tab) {
-      return location.pathname.startsWith('/teacher-home') && currentTab === link.tab;
+  const isActive = (to) => {
+    const [path, query] = to.split('?');
+    if (location.pathname !== path && !location.pathname.startsWith(path + '/')) return false;
+    if (!query) {
+      // 베이스 링크: 쿼리 파라미터(m= 또는 tab=)가 없을 때만 활성
+      return !location.search.includes('m=') && !location.search.includes('tab=');
     }
-    if (link.menu !== undefined) {
-      return location.pathname.startsWith('/admin-home') && currentMenu === link.menu;
-    }
-    return location.pathname.startsWith(link.to);
+    return location.search.includes(query);
   };
 
   return (
@@ -93,9 +101,9 @@ export default function Navbar() {
                   key={link.to}
                   to={link.to}
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive(link)
-                      ? (isAdmin ? 'bg-teal-600 text-white shadow-sm' : 'bg-ocean-400 text-white shadow-sm')
-                      : (isAdmin ? 'text-stone-600 hover:bg-teal-50' : 'text-ink-soft hover:bg-ocean-100')
+                    isActive(link.to)
+                      ? A.active
+                      : `text-ink-soft ${A.hover}`
                   }`}
                 >
                   {link.label}
@@ -113,16 +121,12 @@ export default function Navbar() {
                   </button>
                 )}
                 <span>{displayName}</span>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                  isAdmin ? 'bg-teal-100 text-teal-700' : 'bg-ocean-100 text-ocean-700'
-                }`}>
+                <span className={`${A.chip} px-2 py-0.5 rounded-full text-xs font-semibold`}>
                   {displayBadge}
                 </span>
                 <button
                   onClick={handleLogout}
-                  className={`ml-2 px-3 py-1 rounded-full text-white text-xs font-medium shadow-sm ${
-                    isAdmin ? 'bg-teal-600 hover:bg-teal-700' : 'bg-ocean-400 hover:bg-ocean-500'
-                  }`}
+                  className={`ml-2 px-3 py-1 rounded-full text-white text-xs font-medium shadow-sm ${A.btn}`}
                 >
                   로그아웃
                 </button>
@@ -133,7 +137,7 @@ export default function Navbar() {
             <div className="md:hidden flex items-center gap-2">
               <NotificationBell />
               <button
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-ocean-100 text-ocean-700 text-xs font-semibold"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${A.chip} text-xs font-semibold`}
                 onClick={() => setUserMenuOpen((o) => !o)}
               >
                 {displayName}
@@ -148,13 +152,13 @@ export default function Navbar() {
               <div className="flex items-center justify-between px-2">
                 <span className="text-sm text-ink-soft">
                   {displayName}{' '}
-                  <span className="bg-ocean-100 text-ocean-700 px-2 py-0.5 rounded-full text-xs font-semibold ml-1">
+                  <span className={`${A.chip} px-2 py-0.5 rounded-full text-xs font-semibold ml-1`}>
                     {displayBadge}
                   </span>
                 </span>
                 <button
                   onClick={handleLogout}
-                  className="px-3 py-1 bg-ocean-400 rounded-full hover:bg-ocean-500 text-white text-xs font-medium shadow-sm"
+                  className={`px-3 py-1 rounded-full text-white text-xs font-medium shadow-sm ${A.btn}`}
                 >
                   로그아웃
                 </button>
@@ -177,15 +181,15 @@ export default function Navbar() {
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/85 backdrop-blur-lg border-t border-white/60 shadow-[0_-4px_16px_-8px_rgba(15,79,181,0.15)]"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        <div className={`flex items-stretch ${isAdmin ? 'overflow-x-auto' : 'justify-around'}`}>
+        <div className="flex items-stretch justify-around">
           {navLinks.map((link) => {
-            const active = isActive(link);
+            const active = isActive(link.to);
             return (
               <Link
                 key={link.to}
                 to={link.to}
-                className={`${isAdmin ? 'flex-none px-3' : 'flex-1'} flex flex-col items-center justify-center py-2 text-[10px] font-medium transition-colors ${
-                  active ? (isAdmin ? 'text-teal-600' : 'text-ocean-600') : 'text-ink-muted'
+                className={`flex-1 flex flex-col items-center justify-center py-2 text-[10px] font-medium transition-colors ${
+                  active ? (isAdmin ? 'text-teal-700' : 'text-ocean-600') : 'text-ink-muted'
                 }`}
               >
                 <span
@@ -193,7 +197,7 @@ export default function Navbar() {
                     active ? 'scale-110' : ''
                   }`}
                 >
-                  {link.icon || ICONS[link.to] || '•'}
+                  {ICONS[link.to] || '•'}
                 </span>
                 <span className="truncate max-w-[64px]">{link.label}</span>
               </Link>

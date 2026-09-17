@@ -5,121 +5,37 @@
 @tailwind utilities;
 
 @layer base {
-  html,
-  body {
-    min-height: 100%;
-    color: #0a1f3d;
+  html, body {
+    color: #0A1F3D;
     font-family: 'Noto Sans KR', 'Gowun Dodum', -apple-system, system-ui, sans-serif;
+    min-height: 100%;
   }
-
   body {
     background:
-      radial-gradient(1100px 460px at 50% -8%, rgba(255, 255, 255, 0.72), transparent 62%),
-      linear-gradient(#f0f7fe, #e7eef4 11%, #d6e7f4 32%, #c3dbef 62%, #afcfe9) fixed;
+      radial-gradient(1100px 460px at 50% -8%, rgba(255,255,255,0.72), transparent 62%),
+      linear-gradient(#F0F7FE 0%, #E7EEF4 11%, #D6E7F4 32%, #C3DBEF 62%, #AFCFE9 100%) fixed;
     background-attachment: fixed;
   }
-
-  h1,
-  h2,
-  h3,
-  h4 {
-    letter-spacing: -0.01em;
-  }
+  h1, h2, h3, h4 { letter-spacing: -0.01em; }
 }
 
 @layer components {
   .btn-primary {
-    @apply rounded-full bg-ocean-400 px-5 py-2.5 font-semibold text-white shadow-soft transition-all hover:bg-ocean-500 active:bg-ocean-600 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply bg-ocean-400 text-white px-5 py-2.5 rounded-full font-semibold shadow-soft hover:bg-ocean-500 active:bg-ocean-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed;
   }
-
   .btn-secondary {
-    @apply rounded-full border border-white bg-white/80 px-5 py-2.5 font-medium text-ink-soft shadow-sm backdrop-blur transition-all hover:bg-white;
+    @apply bg-white/80 backdrop-blur text-ink-soft px-5 py-2.5 rounded-full font-medium border border-white hover:bg-white transition-all shadow-sm;
   }
-
+  .btn-danger {
+    @apply bg-rose-500 text-white px-5 py-2.5 rounded-full font-semibold shadow-soft hover:bg-rose-600 active:bg-rose-700 transition-all;
+  }
   .card {
-    @apply rounded-2xl border border-white/60 bg-white/85 p-4 backdrop-blur;
-    box-shadow: 0 4px 20px -8px rgba(15, 79, 181, 0.12), 0 1px 3px rgba(10, 31, 61, 0.05);
+    @apply bg-white/85 backdrop-blur rounded-2xl shadow-card border border-white/60 p-4;
   }
-
   .input {
-    @apply w-full rounded-xl border border-ocean-100 bg-white/90 px-3.5 py-2.5 text-ink transition-all focus:border-ocean-400 focus:outline-none focus:ring-2 focus:ring-ocean-400/40;
+    @apply w-full bg-white/90 border border-ocean-100 rounded-xl px-3.5 py-2.5 text-ink focus:outline-none focus:ring-2 focus:ring-ocean-400/40 focus:border-ocean-400 transition-all;
   }
-
   .label {
-    @apply mb-1.5 block text-sm font-medium text-ink-soft;
+    @apply block text-sm font-medium text-ink-soft mb-1.5;
   }
 }
-
-/* ── 관리자(사역 대시보드) 테마: 하위 페이지 디자인을 메인과 통일 ──
-   아이보리 배경 + 스톤 보더 + 민트(teal) 액센트. 기존 파란색/유리질 스타일을 덮어쓴다. */
-.admin-theme .card {
-  background-color: #ffffff;
-  border-color: #e7e5e4;
-  border-radius: 0.75rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-.admin-theme .btn-primary {
-  background-color: #0d9488;
-  box-shadow: 0 1px 2px rgba(13, 148, 136, 0.3);
-  border-radius: 0.625rem;
-}
-.admin-theme .btn-primary:hover { background-color: #0f766e; }
-.admin-theme .btn-primary:active { background-color: #115e59; }
-.admin-theme .btn-secondary {
-  background-color: #ffffff;
-  border-color: #e7e5e4;
-  color: #57534e;
-  border-radius: 0.625rem;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-.admin-theme .input {
-  background-color: #ffffff;
-  border-color: #e7e5e4;
-  border-radius: 0.625rem;
-}
-.admin-theme .input:focus {
-  border-color: #14b8a6;
-  --tw-ring-color: rgba(20, 184, 166, 0.25);
-}
-.admin-theme .label { color: #57534e; }
-
-/* 파란 계열 액센트 → 민트로 통일 */
-.admin-theme .bg-blue-600,
-.admin-theme .bg-blue-500,
-.admin-theme .bg-ocean-400 { background-color: #0d9488 !important; }
-.admin-theme .hover\:bg-blue-600:hover,
-.admin-theme .hover\:bg-ocean-500:hover { background-color: #0f766e !important; }
-.admin-theme .text-blue-700,
-.admin-theme .text-blue-600,
-.admin-theme .text-blue-500,
-.admin-theme .text-blue-800,
-.admin-theme .text-ocean-600,
-.admin-theme .text-ocean-700 { color: #0f766e !important; }
-.admin-theme .bg-blue-100,
-.admin-theme .bg-ocean-100 { background-color: #ccfbf1 !important; }
-.admin-theme .bg-blue-50,
-.admin-theme .bg-ocean-50 { background-color: #f0fdfa !important; }
-.admin-theme .border-blue-500,
-.admin-theme .border-blue-600,
-.admin-theme .border-ocean-400 { border-color: #14b8a6 !important; }
-.admin-theme .border-ocean-100,
-.admin-theme .border-ocean-200,
-.admin-theme .border-blue-200 { border-color: #e7e5e4 !important; }
-.admin-theme .accent-blue-600,
-.admin-theme .accent-ocean-500 { accent-color: #0d9488 !important; }
-.admin-theme .ring-blue-400 { --tw-ring-color: #2dd4bf !important; }
-.admin-theme .focus\:border-blue-400:focus { border-color: #14b8a6 !important; }
-
-/* 반투명 유리 배경 → 불투명 화이트/뉴트럴 */
-.admin-theme .bg-white\/60,
-.admin-theme .bg-white\/70,
-.admin-theme .bg-white\/80,
-.admin-theme .bg-white\/85 { background-color: #ffffff !important; }
-.admin-theme .bg-gray-100 { background-color: #f5f5f4 !important; }
-.admin-theme .shadow-soft { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important; }
-.admin-theme .text-ink { color: #1c1917 !important; }
-.admin-theme .text-ink-soft { color: #57534e !important; }
-.admin-theme .text-ink-muted { color: #a8a29e !important; }

@@ -5,13 +5,13 @@ import { useAuth } from '../contexts/AuthContext';
 const LIMITED_ALLOWED = new Set(['/announcements', '/students']);
 
 export default function ProtectedRoute({ children, adminOnly = false, path = null }) {
-  const { currentUser, isAdmin, isLimited } = useAuth();
+  const { currentUser, userProfile, isLimited } = useAuth();
 
   if (!currentUser) {
     return <Navigate to="/login" replace />;
   }
 
-  if (adminOnly && !isAdmin) {
+  if (adminOnly && userProfile?.role !== 'admin') {
     return <Navigate to={isLimited ? '/announcements' : '/'} replace />;
   }
 

@@ -1,44 +1,103 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import {
-  collection, getDocs, doc, onSnapshot, setDoc, getDoc, updateDoc, increment,
-  addDoc, deleteDoc, query, where,
-} from 'firebase/firestore';
+import { collection, getDocs, doc, onSnapshot, setDoc, getDoc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import AttendanceSheet from '../components/attendance/AttendanceSheet';
 import { getThisSunday, formatDateKo, isValidSunday } from '../utils/dateUtils';
 
-const VALID_TABS = ['attend', 'growth', 'songcheong'];
+// 두 날짜 사이 일요일 개수
+function countSundaysBetween(start, end) {
+  const s = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const e = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  let count = 0;
+  const cur = new Date(s);
+  while (cur <= e) {
+    if (cur.getDay() === 0) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
+
+// 학생 상세 패널 — 월별 출석률 차트, 결석 요약, 장결 여부
+function StudentDetailPanel({ s, yearTotalSundays }) {
+  const monthly = s.monthly || [];
+  const MONTH_LABELS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  const maxRate = 100;
+  const avgRate = (() => {
+    const nums = monthly.map((m) => m.rate).filter((v) => v != null);
+    if (nums.length === 0) return null;
+    return Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
+  })();
+
+  return (
+    <div className="border-t border-ocean-100 bg-white/70 px-4 py-4 space-y-3">
+      {/* 요약 라인 */}
+      <div className="grid grid-cols-3 gap-2">
+        <MetricPill label="누적 출석률" value={s.rate == null ? '-' : `${s.rate}%`} tone="teal" />
+        <MetricPill label="월평균" value={avgRate == null ? '-' : `${avgRate}%`} tone="ocean" />
+        <MetricPill label="결석 (올해)" value={s.absentLabel} tone="rose" />
+      </div>
+
+      {/* 월별 출석률 막대 차트 */}
+      <div>
+        <div className="text-xs text-ink-muted mb-1.5">월별 출석률</div>
+        <div className="flex items-end gap-1 h-24 pt-1">
+          {monthly.map((m) => (
+            <div key={m.month} className="flex-1 flex flex-col items-center justify-end">
+              <div className="text-[9px] text-ink-muted mb-0.5">{m.rate == null ? '-' : m.rate}</div>
+              <div
+                className={`w-full rounded-t-md ${m.rate == null ? 'bg-stone-200' : m.rate >= 75 ? 'bg-emerald-500' : m.rate >= 50 ? 'bg-amber-400' : 'bg-rose-400'}`}
+                style={{ height: `${((m.rate ?? 0) / maxRate) * 100}%`, minHeight: m.rate != null ? '4px' : '2px' }}
+              />
+              <div className="text-[9px] text-ink-muted mt-1">{MONTH_LABELS[m.month - 1]}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 개인 정보 라인 */}
+      {(s.phone || s.parentPhone) && (
+        <div className="text-xs text-ink-muted flex flex-wrap gap-x-3 gap-y-1 pt-1">
+          {s.phone && <span>📱 {s.phone}</span>}
+          {s.parentPhone && <span>👨‍👩‍👧 {s.parentPhone}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MetricPill({ label, value, tone }) {
+  const bg = tone === 'teal' ? 'bg-teal-50 text-teal-700' :
+             tone === 'rose' ? 'bg-rose-50 text-rose-700' :
+             'bg-ocean-50 text-ocean-700';
+  return (
+    <div className={`rounded-xl px-3 py-2 ${bg}`}>
+      <div className="text-[10px] font-medium opacity-80">{label}</div>
+      <div className="text-lg font-bold">{value}</div>
+    </div>
+  );
+}
 
 export default function TeacherHomePage() {
   const { userProfile, currentUser } = useAuth();
   const [searchParams] = useSearchParams();
-  const tabParam = searchParams.get('tab');
-  const tab = VALID_TABS.includes(tabParam) ? tabParam : 'attend';
+  const tab = searchParams.get('tab') || 'attend';
 
   const myClassId = userProfile?.classId;
   const myService = userProfile?.service;
   const myName = userProfile?.name || currentUser?.email;
 
-  const TAB_TITLES = {
-    attend: { icon: '✅', title: '출석', desc: '주일 출석을 체크하고 우리 반 현황을 확인해요' },
-    growth: { icon: '🌱', title: '성장', desc: '학생별로 스티커를 주며 신앙 성장을 응원해요' },
-    songcheong: { icon: '🙏', title: '송청', desc: '송림청소년부 임원과 사역팀을 소개해요' },
-  };
-  const head = TAB_TITLES[tab];
-
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 pb-24 md:pb-6">
-      <div className="mb-5 flex items-end justify-between gap-2 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-ink">{head.icon} {head.title}</h1>
-          <p className="text-sm text-ink-muted mt-0.5">{head.desc}</p>
-        </div>
-        <div className="text-xs text-ink-muted bg-white/70 border border-white/60 rounded-full px-3 py-1.5 backdrop-blur">
-          {myName} 선생님{myService ? ` · ${myService}` : ''}
-          {myClassId ? ` · ${myClassId.replace(/^\d+부_/, '')}반` : ''}
-        </div>
+      <div className="mb-4">
+        <h1 className="text-xl font-bold text-ink">👋 {myName} 선생님</h1>
+        <p className="text-sm text-ocean-700 mt-1">
+          {myName} 선생님, 오늘도 섬겨주셔서 감사합니다.
+        </p>
+        <p className="text-xs text-ink-muted mt-0.5">
+          {myService ? `${myService} · ` : ''}{myClassId ? `${myClassId.replace(/^\d+부_/, '')} 선생님반` : '반 미배정'}
+        </p>
       </div>
 
       {tab === 'attend' && <AttendSection classId={myClassId} service={myService} teacherName={userProfile?.name} />}
@@ -120,6 +179,7 @@ function ClassAttendanceSummary({ classId }) {
   const [students, setStudents] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
     let s = false, a = false;
@@ -137,45 +197,95 @@ function ClassAttendanceSummary({ classId }) {
 
   if (loading) return <div className="card text-center text-ink-muted py-6 text-sm">불러오는 중...</div>;
 
-  // 학생별 출석/결석/미체크 카운트
+  // 전체 예배(일요일) 수 — 올해 1월 1일부터 현재까지의 일요일 개수
+  const now = new Date();
+  const jan1 = new Date(now.getFullYear(), 0, 1);
+  const yearTotalSundays = countSundaysBetween(jan1, now);
+
+  // 학생별 통계 + 월별 데이터
   const stats = students.map((st) => {
     let present = 0, absent = 0, missing = 0;
+    const attendedDates = new Set();
+    const absentDates = new Set();
     attendance.forEach((rec) => {
       const r = rec.records?.find((rr) => rr.studentId === st.id);
       if (!r) return;
-      if (r.present === true) present++;
-      else if (r.present === false) absent++;
+      if (r.present === true) { present++; attendedDates.add(rec.date); }
+      else if (r.present === false) { absent++; absentDates.add(rec.date); }
       else missing++;
     });
     const total = present + absent;
     const rate = total > 0 ? Math.round((present / total) * 100) : null;
-    return { ...st, present, absent, missing, rate };
-  }).sort((a, b) => (b.rate ?? -1) - (a.rate ?? -1) || (a.name || '').localeCompare(b.name || '', 'ko'));
+
+    // 월별 출석률
+    const monthly = [];
+    for (let m = 0; m <= now.getMonth(); m++) {
+      const monStart = new Date(now.getFullYear(), m, 1);
+      const monEnd = new Date(now.getFullYear(), m + 1, 0);
+      const monKey = String(m + 1).padStart(2, '0');
+      let mP = 0, mA = 0;
+      attendedDates.forEach((d) => { if (d.startsWith(`${now.getFullYear()}-${monKey}`)) mP++; });
+      absentDates.forEach((d) => { if (d.startsWith(`${now.getFullYear()}-${monKey}`)) mA++; });
+      const mT = mP + mA;
+      monthly.push({ month: m + 1, rate: mT > 0 ? Math.round((mP / mT) * 100) : null });
+    }
+
+    // 결석 표기: 01월~현재 결석수 / 올해 총 일요일 수
+    const absentLabel = `${String(absent).padStart(2, '0')}/${String(yearTotalSundays).padStart(2, '0')}`;
+
+    const isLongAbsent = st.status === 'long_absent';
+
+    return { ...st, present, absent, missing, rate, monthly, absentLabel, isLongAbsent };
+  }).sort((a, b) => {
+    // 장결자를 하단, 나머지는 출석률 내림차순
+    if (a.isLongAbsent !== b.isLongAbsent) return a.isLongAbsent ? 1 : -1;
+    return (b.rate ?? -1) - (a.rate ?? -1) || (a.name || '').localeCompare(b.name || '', 'ko');
+  });
 
   return (
     <div>
       <div className="text-sm text-ink-muted mb-2">우리 반 · {stats.length}명 · 최근 예배 기준 누적</div>
       <div className="space-y-2">
-        {stats.map((s) => (
-          <div key={s.id} className="card flex items-center justify-between py-3">
-            <div>
-              <div className="font-medium text-ink">{s.name}</div>
-              <div className="text-xs text-ink-muted mt-0.5">
-                {s.grade || '학년 미정'}{s.gender ? ` · ${s.gender}` : ''}
-              </div>
+        {stats.map((s) => {
+          const open = expandedId === s.id;
+          return (
+            <div key={s.id} className={`card p-0 overflow-hidden ${s.isLongAbsent ? 'border-red-200 bg-red-50/40' : ''}`}>
+              <button
+                onClick={() => setExpandedId(open ? null : s.id)}
+                className="w-full flex items-center justify-between py-3 px-4 text-left hover:bg-ocean-50/40 transition-colors"
+              >
+                <div>
+                  <div className="font-medium text-ink flex items-center gap-1.5 flex-wrap">
+                    {s.name}
+                    {s.isLongAbsent && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500 text-white font-semibold flex items-center gap-0.5">
+                        🚩 장결자
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-ink-muted mt-0.5">
+                    {s.grade || '학년 미정'}{s.gender ? ` · ${s.gender}` : ''}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <div className="text-sm">
+                      <span className="text-emerald-600 font-semibold">{s.present}</span>
+                      <span className="text-ink-muted"> / </span>
+                      <span className="text-rose-500">{s.absent}</span>
+                    </div>
+                    <div className="text-xs text-ink-muted">
+                      {s.rate == null ? '기록없음' : `${s.rate}%`}
+                    </div>
+                  </div>
+                  <span className={`text-ink-muted transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
+                </div>
+              </button>
+
+              {open && <StudentDetailPanel s={s} yearTotalSundays={yearTotalSundays} />}
             </div>
-            <div className="text-right">
-              <div className="text-sm">
-                <span className="text-emerald-600 font-semibold">{s.present}</span>
-                <span className="text-ink-muted"> / </span>
-                <span className="text-rose-500">{s.absent}</span>
-              </div>
-              <div className="text-xs text-ink-muted">
-                {s.rate == null ? '기록없음' : `${s.rate}%`}
-              </div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
         {stats.length === 0 && (
           <div className="card text-center text-ink-muted py-6 text-sm">우리 반 학생이 없습니다.</div>
         )}
@@ -185,36 +295,22 @@ function ClassAttendanceSummary({ classId }) {
 }
 
 // ────────────────────────────────────────────────────────
-// 성장 섹션 — 스티커 영역(기본: 말씀묵상)별로 학생에게 스티커 주기
-// 데이터:
-//  - class_growth_categories/{classId} : { categories: [{id,name,emoji,points}] } (영역 목록)
-//  - student_growth/{studentId}        : { [areaId]: 누적개수 }
-//  - growth_logs (컬렉션)               : { studentId, classId, catId, points, ts, teacher } (개별 기록)
+// 성장 섹션 (스티커)
 // ────────────────────────────────────────────────────────
-const DEFAULT_AREAS = [
-  { id: 'quiet_time', name: '말씀묵상', emoji: '📖', points: 5 },
+const DEFAULT_CATEGORIES = [
+  { id: 'quiet_time', name: '말씀 묵상', emoji: '📖', points: 5 },
+  { id: 'writing', name: '필사', emoji: '✍️', points: 5 },
+  { id: 'personal_goal', name: '개인 목표 달성', emoji: '🎯', points: 5 },
 ];
-
-const EMOJI_CHOICES = ['📖', '✍️', '🙌', '🤝', '💬', '⭐', '🔥', '🎵', '❤️', '🕊️'];
-
-function getWeekStart() {
-  // 주일(일요일) 시작 기준 이번 주
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - d.getDay());
-  return d.getTime();
-}
 
 function GrowthSection({ classId, teacherName }) {
   const [students, setStudents] = useState([]);
-  const [areas, setAreas] = useState(DEFAULT_AREAS);
-  const [activeAreaId, setActiveAreaId] = useState(DEFAULT_AREAS[0].id);
-  const [counts, setCounts] = useState({}); // {studentId: {areaId: count}}
-  const [logs, setLogs] = useState([]); // 우리 반 스티커 기록
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [counts, setCounts] = useState({}); // {studentId: {catId: count}}
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
-  const [newArea, setNewArea] = useState({ name: '', emoji: '✍️', points: 5 });
-  const [busy, setBusy] = useState(null); // `${studentId}` 처리 중 표시
+  const [newCat, setNewCat] = useState({ name: '', emoji: '⭐', points: 5 });
+  const [selectedCat, setSelectedCat] = useState(null);
 
   useEffect(() => {
     if (!classId) return;
@@ -229,124 +325,62 @@ function GrowthSection({ classId, teacherName }) {
       s = true; done();
     });
 
-    // 스티커 영역 목록 (반별 설정)
+    // 카테고리 설정 (반별)
     const catRef = doc(db, 'class_growth_categories', classId);
     const u2 = onSnapshot(catRef, (snap) => {
-      if (snap.exists() && Array.isArray(snap.data().categories) && snap.data().categories.length > 0) {
-        setAreas(snap.data().categories);
+      if (snap.exists() && Array.isArray(snap.data().categories)) {
+        setCategories(snap.data().categories);
       } else {
-        setAreas(DEFAULT_AREAS);
+        setCategories(DEFAULT_CATEGORIES);
       }
       c = true; done();
     });
 
-    // 학생별 누적 카운트
+    // 학생별 스티커 카운트
     const u3 = onSnapshot(collection(db, 'student_growth'), (snap) => {
       const map = {};
       snap.docs.forEach((d) => { map[d.id] = d.data() || {}; });
       setCounts(map);
     });
 
-    // 우리 반 스티커 기록 (이번 주 카운트/취소용)
-    const u4 = onSnapshot(query(collection(db, 'growth_logs'), where('classId', '==', classId)), (snap) => {
-      setLogs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-
-    return () => { u1(); u2(); u3(); u4(); };
+    return () => { u1(); u2(); u3(); };
   }, [classId]);
 
-  // 활성 영역이 목록에서 사라졌으면 첫 영역으로
-  useEffect(() => {
-    if (!areas.find((a) => a.id === activeAreaId)) {
-      setActiveAreaId(areas[0]?.id);
+  async function giveSticker(studentId, catId) {
+    const ref = doc(db, 'student_growth', studentId);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      await updateDoc(ref, { [catId]: increment(1) });
+    } else {
+      await setDoc(ref, { [catId]: 1 });
     }
-  }, [areas, activeAreaId]);
-
-  const activeArea = areas.find((a) => a.id === activeAreaId) || areas[0];
-  const weekStart = getWeekStart();
-
-  const weeklyByStudent = useMemo(() => {
-    const map = {};
-    logs.forEach((l) => {
-      if (l.catId !== activeArea?.id) return;
-      if ((l.ts || 0) < weekStart) return;
-      map[l.studentId] = (map[l.studentId] || 0) + 1;
-    });
-    return map;
-  }, [logs, activeArea, weekStart]);
-
-  async function giveSticker(student) {
-    if (!activeArea || busy) return;
-    setBusy(student.id);
-    try {
-      const ref = doc(db, 'student_growth', student.id);
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        await updateDoc(ref, { [activeArea.id]: increment(1) });
-      } else {
-        await setDoc(ref, { [activeArea.id]: 1 });
-      }
-      await addDoc(collection(db, 'growth_logs'), {
-        studentId: student.id,
-        studentName: student.name || '',
-        classId,
-        catId: activeArea.id,
-        points: activeArea.points || 0,
-        ts: Date.now(),
-        teacher: teacherName || '',
-      });
-    } catch (e) {
-      console.error('스티커 저장 오류:', e);
-      alert('스티커 저장 중 오류가 발생했습니다.');
-    }
-    setBusy(null);
   }
 
-  async function undoSticker(student) {
-    if (!activeArea || busy) return;
-    const mine = logs
-      .filter((l) => l.studentId === student.id && l.catId === activeArea.id)
-      .sort((a, b) => (b.ts || 0) - (a.ts || 0));
-    const cur = (counts[student.id] || {})[activeArea.id] || 0;
-    if (cur <= 0) return;
-    if (!window.confirm(`${student.name} 학생의 ${activeArea.name} 스티커 1개를 취소할까요?`)) return;
-    setBusy(student.id);
-    try {
-      const ref = doc(db, 'student_growth', student.id);
-      await updateDoc(ref, { [activeArea.id]: increment(-1) });
-      if (mine[0]) await deleteDoc(doc(db, 'growth_logs', mine[0].id));
-    } catch (e) {
-      console.error('스티커 취소 오류:', e);
+  async function resetSticker(studentId, catId) {
+    if (!window.confirm('이 학생의 이 카테고리 스티커 개수를 0으로 초기화할까요?')) return;
+    const ref = doc(db, 'student_growth', studentId);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      await updateDoc(ref, { [catId]: 0 });
+    } else {
+      await setDoc(ref, { [catId]: 0 });
     }
-    setBusy(null);
   }
 
-  async function addArea() {
-    if (!newArea.name.trim()) return;
+  async function removeCategory(catId) {
+    if (!window.confirm('이 카테고리를 삭제할까요? (기록은 유지)')) return;
+    const next = categories.filter((c) => c.id !== catId);
+    await setDoc(doc(db, 'class_growth_categories', classId), { categories: next }, { merge: true });
+  }
+
+  async function addCategory() {
+    if (!newCat.name.trim()) return;
     const id = `cat_${Date.now()}`;
-    const nextList = [...areas, {
-      id,
-      name: newArea.name.trim(),
-      emoji: newArea.emoji || '⭐',
-      points: Number(newArea.points) || 5,
-    }];
-    await setDoc(doc(db, 'class_growth_categories', classId), {
-      categories: nextList,
-      updatedBy: teacherName || '',
-    }, { merge: true });
-    setNewArea({ name: '', emoji: '✍️', points: 5 });
+    const nextList = [...categories, { id, name: newCat.name.trim(), emoji: newCat.emoji, points: Number(newCat.points) || 5 }];
+    const ref = doc(db, 'class_growth_categories', classId);
+    await setDoc(ref, { categories: nextList, updatedBy: teacherName || '' }, { merge: true });
+    setNewCat({ name: '', emoji: '⭐', points: 5 });
     setAddOpen(false);
-    setActiveAreaId(id);
-  }
-
-  async function removeArea(area) {
-    if (area.id === 'quiet_time') return; // 기본 영역은 삭제 불가
-    if (!window.confirm(`'${area.name}' 영역을 삭제할까요?\n(이미 준 스티커 기록은 남아있지만 화면에는 보이지 않게 됩니다)`)) return;
-    const nextList = areas.filter((a) => a.id !== area.id);
-    await setDoc(doc(db, 'class_growth_categories', classId), {
-      categories: nextList,
-      updatedBy: teacherName || '',
-    }, { merge: true });
   }
 
   if (!classId) {
@@ -358,162 +392,113 @@ function GrowthSection({ classId, teacherName }) {
   }
   if (loading) return <div className="card text-center text-ink-muted py-6 text-sm">불러오는 중...</div>;
 
+  // 선택된 카테고리 화면 (학생 리스트 + 개별 +/리셋)
+  if (selectedCat) {
+    const cat = categories.find((c) => c.id === selectedCat);
+    if (!cat) { setSelectedCat(null); return null; }
+    return (
+      <div>
+        <button
+          onClick={() => setSelectedCat(null)}
+          className="text-sm text-ink-muted hover:text-ink mb-3 flex items-center gap-1"
+        >
+          ← 스티커 카드로
+        </button>
+        <div className="card mb-4 bg-white/80">
+          <div className="flex items-center gap-3">
+            <div className="text-3xl">{cat.emoji}</div>
+            <div className="flex-1">
+              <div className="font-bold text-ink">{cat.name}</div>
+              <div className="text-xs text-ink-muted">스티커 한 번당 +{cat.points}P</div>
+            </div>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {students.map((s) => {
+            const cnt = (counts[s.id] || {})[cat.id] || 0;
+            return (
+              <div key={s.id} className="card flex items-center justify-between py-3">
+                <div>
+                  <div className="font-medium text-ink">{s.name}</div>
+                  <div className="text-xs text-ink-muted">
+                    {s.grade || ''}{s.gender ? ` · ${s.gender}` : ''} · <span className="text-ocean-600 font-semibold">{cnt}회 · {cnt * cat.points}P</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => resetSticker(s.id, cat.id)}
+                    className="text-xs px-3 py-1.5 border border-stone-200 text-stone-500 rounded-full hover:bg-stone-100"
+                    title="리셋"
+                  >
+                    ↺ 리셋
+                  </button>
+                  <button
+                    onClick={() => giveSticker(s.id, cat.id)}
+                    className="text-sm px-4 py-2 bg-ocean-400 text-white font-semibold rounded-full hover:bg-ocean-500 shadow-sm"
+                  >
+                    +1 스티커
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          {students.length === 0 && (
+            <div className="card text-center text-ink-muted py-6 text-sm">우리 반 학생이 없습니다.</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // 카테고리 카드 그리드
   return (
     <div>
-      {/* 영역(스티커 종류) 하위 탭 */}
-      <div className="flex items-center gap-1 mb-3 flex-wrap">
-        <div className="flex gap-1 bg-white/60 rounded-xl p-1 flex-wrap">
-          {areas.map((a) => (
-            <button
-              key={a.id}
-              onClick={() => setActiveAreaId(a.id)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                activeAreaId === a.id ? 'bg-white text-ocean-600 shadow-sm' : 'text-ink-muted'
-              }`}
-            >
-              {a.emoji} {a.name}
-            </button>
-          ))}
-        </div>
-        <button
-          onClick={() => setAddOpen((o) => !o)}
-          className="px-3 py-1.5 rounded-lg text-sm font-semibold text-ocean-600 bg-ocean-100 hover:bg-ocean-200/70 transition-all"
-          title="스티커 영역 추가 (예: 필사)"
-        >
-          + 영역 추가
+      <div className="flex items-center justify-between mb-3">
+        <div className="font-bold text-ink">✨ 스티커 카드</div>
+        <button onClick={() => setAddOpen(true)} className="text-xs px-3 py-1.5 bg-ocean-400 text-white rounded-full font-medium shadow-sm">
+          + 카드 추가
         </button>
       </div>
 
-      {/* 영역 추가 폼 */}
       {addOpen && (
         <div className="card mb-3">
-          <div className="font-semibold mb-2 text-sm">새 스티커 영역 추가</div>
-          <div className="flex flex-wrap gap-1.5 mb-2">
-            {EMOJI_CHOICES.map((e) => (
-              <button
-                key={e}
-                onClick={() => setNewArea({ ...newArea, emoji: e })}
-                className={`w-10 h-10 rounded-xl text-xl border transition-all ${
-                  newArea.emoji === e ? 'border-ocean-400 bg-ocean-50 ring-2 ring-blue-400' : 'border-ocean-100 bg-white'
-                }`}
-              >
-                {e}
-              </button>
-            ))}
-          </div>
+          <div className="font-semibold mb-2 text-sm">새 카드 추가</div>
           <div className="grid grid-cols-6 gap-2 items-center mb-2">
-            <input
-              className="input col-span-4"
-              placeholder="영역 이름 (예: 필사)"
-              value={newArea.name}
-              onChange={(e) => setNewArea({ ...newArea, name: e.target.value })}
-            />
-            <div className="col-span-2 flex items-center gap-1">
-              <input
-                className="input"
-                type="number" min="1" max="100"
-                value={newArea.points}
-                onChange={(e) => setNewArea({ ...newArea, points: e.target.value })}
-              />
-              <span className="text-xs text-ink-muted whitespace-nowrap">P</span>
-            </div>
+            <input className="input col-span-1 text-center" maxLength={2} value={newCat.emoji} onChange={(e) => setNewCat({ ...newCat, emoji: e.target.value })} />
+            <input className="input col-span-3" placeholder="이름 (예: 필사)" value={newCat.name} onChange={(e) => setNewCat({ ...newCat, name: e.target.value })} />
+            <input className="input col-span-2" type="number" min="1" max="100" value={newCat.points} onChange={(e) => setNewCat({ ...newCat, points: e.target.value })} />
           </div>
           <div className="flex gap-2">
-            <button onClick={addArea} className="btn-primary flex-1">추가</button>
+            <button onClick={addCategory} className="btn-primary flex-1">추가</button>
             <button onClick={() => setAddOpen(false)} className="btn-secondary flex-1">취소</button>
           </div>
         </div>
       )}
 
-      {/* 현재 영역 안내 */}
-      {activeArea && (
-        <div className="card mb-3 flex items-center justify-between bg-white/70">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-ocean-100 flex items-center justify-center text-xl">
-              {activeArea.emoji}
-            </div>
-            <div>
-              <div className="font-bold text-ink">{activeArea.name}</div>
-              <div className="text-xs text-ink-muted">
-                스티커 1개 = <span className="text-ocean-600 font-semibold">+{activeArea.points}P</span> · 학생 이름 옆 버튼을 눌러 주세요
-              </div>
-            </div>
-          </div>
-          {activeArea.id !== 'quiet_time' && (
-            <button
-              onClick={() => removeArea(activeArea)}
-              className="text-xs text-red-400 hover:text-red-600 px-2 py-1"
-            >
-              영역 삭제
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* 학생별 스티커 카드 */}
-      <div className="space-y-3">
-        {students.map((s) => {
-          const c = counts[s.id] || {};
-          const areaCount = c[activeArea?.id] || 0;
-          const weekly = weeklyByStudent[s.id] || 0;
-          const totalPoints = areas.reduce((sum, a) => sum + ((c[a.id] || 0) * (a.points || 0)), 0);
+      <div className="grid grid-cols-2 gap-3">
+        {categories.map((cat) => {
+          const totalGiven = students.reduce((sum, s) => sum + ((counts[s.id] || {})[cat.id] || 0), 0);
           return (
-            <div key={s.id} className="card">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-ink">{s.name}</span>
-                  <span className="text-xs font-semibold text-ocean-600 bg-ocean-50 border border-ocean-100 rounded-full px-2 py-0.5">
-                    {totalPoints}P
-                  </span>
-                  <span className="text-xs text-ink-muted">이번 주 {weekly}개</span>
-                </div>
-                <div className="text-xs text-ink-muted">{s.grade || ''}{s.gender ? ` · ${s.gender}` : ''}</div>
-              </div>
-
-              {/* 모은 스티커 시각화 */}
-              <div className="flex flex-wrap gap-1 mb-3 min-h-[1.75rem]">
-                {Array.from({ length: Math.min(areaCount, 40) }).map((_, i) => (
-                  <span key={i} className="text-lg leading-none" title={`${i + 1}번째 스티커`}>
-                    {activeArea?.emoji}
-                  </span>
-                ))}
-                {areaCount > 40 && (
-                  <span className="text-xs text-ink-muted self-center">+{areaCount - 40}</span>
-                )}
-                {areaCount === 0 && (
-                  <span className="text-xs text-ink-muted self-center">아직 스티커가 없어요</span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => giveSticker(s)}
-                  disabled={busy === s.id}
-                  className="flex-1 rounded-xl border-2 border-dashed border-amber-300 bg-amber-50 hover:bg-amber-100 transition-all py-2.5 text-center disabled:opacity-40"
-                >
-                  <span className="text-lg mr-1.5 align-middle">{activeArea?.emoji}</span>
-                  <span className="text-sm font-bold text-amber-700 align-middle">
-                    스티커 주기 <span className="text-amber-600">+{activeArea?.points}P</span>
-                  </span>
-                </button>
-                <button
-                  onClick={() => undoSticker(s)}
-                  disabled={busy === s.id || areaCount === 0}
-                  className="px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-ink-muted text-sm hover:bg-gray-50 disabled:opacity-40"
-                  title="실수로 준 스티커 1개 취소"
-                >
-                  취소
-                </button>
-              </div>
-              <div className="text-right text-[11px] text-ink-muted mt-1.5">
-                {activeArea?.name} 누적 <span className="font-semibold text-ink-soft">{areaCount}개</span>
-              </div>
+            <div key={cat.id} className="card relative hover:shadow-soft transition-all">
+              <button
+                onClick={() => setSelectedCat(cat.id)}
+                className="w-full text-left"
+              >
+                <div className="text-4xl mb-2">{cat.emoji}</div>
+                <div className="font-bold text-ink">{cat.name}</div>
+                <div className="text-xs text-ink-muted mt-1">한 번당 +{cat.points}P</div>
+                <div className="text-xs text-ocean-600 mt-1">이번 학기 부여 {totalGiven}회</div>
+              </button>
+              <button
+                onClick={() => removeCategory(cat.id)}
+                className="absolute top-2 right-2 text-xs text-stone-300 hover:text-rose-500 opacity-0 hover:opacity-100 group-hover:opacity-100"
+                title="카드 삭제"
+              >
+                ✕
+              </button>
             </div>
           );
         })}
-        {students.length === 0 && (
-          <div className="card text-center text-ink-muted py-6 text-sm">우리 반 학생이 없습니다.</div>
-        )}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 {
   "short_name": "송림청소년부",
-  "name": "송림청소년부 출석 관리",
+  "name": "송림청소년부 출석 관리 시스템",
   "icons": [
     {
       "src": "favicon.ico",
@@ -10,18 +10,19 @@
     {
       "src": "logo192.png",
       "type": "image/png",
-      "sizes": "192x192",
-      "purpose": "any maskable"
+      "sizes": "192x192"
     },
     {
       "src": "logo512.png",
       "type": "image/png",
-      "sizes": "512x512",
-      "purpose": "any maskable"
+      "sizes": "512x512"
     }
   ],
   "start_url": ".",
   "display": "standalone",
   "theme_color": "#1d4ed8",
-  "background_color": "#f0f7fe"
+  "background_color": "#ffffff",
+  "orientation": "portrait",
+  "lang": "ko",
+  "description": "송림청소년부 출석 관리 시스템"
 }

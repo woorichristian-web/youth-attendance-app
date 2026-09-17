@@ -4,3 +4,15 @@
 npm-debug.log*
 .firebase/
 firebase-debug.log
+
+# 개인정보 포함 가능성이 있는 관리 스크립트/데이터 (로컬 전용, 커밋 금지)
+scripts/output/
+scripts/serviceAccountKey.json
+scripts/node_modules/
+*.xlsx
+SETUP_GUIDE.md
+update_*.mjs
+update_*.js
+fix_*.mjs
+add_excluded_students.mjs
+import_excel_students.mjs

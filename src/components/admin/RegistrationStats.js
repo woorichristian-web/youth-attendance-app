@@ -279,31 +279,35 @@ export default function RegistrationStats() {
 
   return (
     <div className="space-y-5">
-      {/* 안내 문구 */}
-      <div className="card bg-blue-50 border-blue-200 text-sm text-blue-700">
-        📌 <strong>인원 계산 기준</strong>: {REGISTERED_DESCRIPTION}
-      </div>
+      {/* 안내 문구 (인라인) */}
+      <p className="text-xs text-slate-500">
+        · 인원 계산 기준: {REGISTERED_DESCRIPTION}
+      </p>
 
-      {/* 인포그래픽 카드 */}
+      {/* 인포그래픽 카드 — 뉴트럴 톤 */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="card text-center bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-          <div className="text-xs text-blue-700 font-medium mb-1">전체 등록 성도</div>
-          <div className="text-3xl font-bold text-blue-800">{activeStudents.length}</div>
-          <div className="text-xs text-blue-600 mt-1">명</div>
+        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
+          <div className="text-xs text-slate-500 mb-1">전체 등록 성도</div>
+          <div className="text-3xl font-semibold text-slate-900">{activeStudents.length}</div>
+          <div className="text-xs text-slate-400 mt-1">명</div>
         </div>
-        <div className="card text-center bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-          <div className="text-xs text-green-700 font-medium mb-1">1부 예배</div>
-          <div className="text-3xl font-bold text-green-800">{count1}</div>
-          <div className="text-xs text-green-600 mt-1">명</div>
+        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
+          <div className="text-xs text-slate-500 mb-1 flex items-center justify-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> 1부 예배
+          </div>
+          <div className="text-3xl font-semibold text-slate-900">{count1}</div>
+          <div className="text-xs text-slate-400 mt-1">명</div>
         </div>
-        <div className="card text-center bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-          <div className="text-xs text-purple-700 font-medium mb-1">2부 예배</div>
-          <div className="text-3xl font-bold text-purple-800">{count2}</div>
-          <div className="text-xs text-purple-600 mt-1">명</div>
+        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
+          <div className="text-xs text-slate-500 mb-1 flex items-center justify-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-violet-500" /> 2부 예배
+          </div>
+          <div className="text-3xl font-semibold text-slate-900">{count2}</div>
+          <div className="text-xs text-slate-400 mt-1">명</div>
         </div>
       </div>
       {countOther > 0 && (
-        <div className="text-xs text-gray-400 text-right">반 미정 {countOther}명 포함</div>
+        <div className="text-xs text-slate-400 text-right">반 미정 {countOther}명 포함</div>
       )}
 
       {/* 월별 평균 선그래프 */}
@@ -375,12 +379,12 @@ export default function RegistrationStats() {
         </div>
 
         {/* 공식 안내 */}
-        <div className="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-xs text-indigo-800">
-          <div className="font-semibold mb-1">📐 출석률 계산식</div>
-          <div className="font-mono text-[13px] text-indigo-900">
+        <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700">
+          <div className="font-semibold mb-1 text-slate-800">출석률 계산식</div>
+          <div className="font-mono text-[13px] text-slate-900">
             출석률 = (실제 출석 횟수 ÷ 총 일요일 횟수) × 100
           </div>
-          <div className="mt-1.5 text-[11px] text-indigo-700 leading-relaxed">
+          <div className="mt-1.5 text-[11px] text-slate-600 leading-relaxed">
             · 총 일요일 횟수 <span className="font-bold">T = {globalT}</span> (1월~현재, 수련회·명절 제외)
             <br />
             · 1회 결석 = <span className="font-mono">({globalT}−1)/{globalT} × 100 ≈ {upper1}%</span>
