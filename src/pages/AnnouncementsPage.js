@@ -301,7 +301,7 @@ export default function AnnouncementsPage() {
         {isAdmin && (
           <div>
             <p className="text-[11px] uppercase tracking-[0.2em] text-stone-500 font-medium mb-1">Messages</p>
-            <h1 className="text-2xl font-semibold text-stone-900 tracking-tight">메시지</h1>
+            <h1 className="text-2xl font-semibold text-stone-900 tracking-tight">소통</h1>
           </div>
         )}
         {canSend && (

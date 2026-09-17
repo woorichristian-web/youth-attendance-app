@@ -22,7 +22,7 @@ import { getSundaysInMonth, getThisSunday } from '../utils/dateUtils';
 import { filterExcludedSundays } from '../utils/excludedDates';
 
 const TOP_MENUS = [
-  { id: 'attendance_view', label: '출석현황' },
+  { id: 'attendance_view', label: '출석' },
   { id: 'students', label: '학생' },
   { id: 'teachers', label: '선생님' },
   { id: 'archive', label: '자료실' },
@@ -98,6 +98,8 @@ function HomeMenu({ onNavigate }) {
   const [students, setStudents] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -115,7 +117,13 @@ function HomeMenu({ onNavigate }) {
       setClasses(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       c = true; done();
     });
-    return () => { u1(); u2(); u3(); };
+    const u4 = onSnapshot(collection(db, 'notifications'), (snap) => {
+      setNotifications(snap.docs.map((d) => d.data()));
+    });
+    const u5 = onSnapshot(collection(db, 'teacher_messages'), (snap) => {
+      setMessages(snap.docs.map((d) => d.data()));
+    });
+    return () => { u1(); u2(); u3(); u4(); u5(); };
   }, []);
 
   const stats = useMemo(() => {
@@ -155,18 +163,31 @@ function HomeMenu({ onNavigate }) {
     });
     const overallRate = allTotal > 0 ? Math.round((allPresent / allTotal) * 100) : null;
 
-    // 확인 필요 = 이번 주 결석 사유 미기입 등 (여기서는 결석자로 대체)
-    const needCheck = missingClasses.length;
+    // 심방요청 = 미확인 알림 중 [심방/기도] 태그가 포함된 건
+    const visitRequests = notifications.filter(
+      (n) => !n.read && (n.notes || '').includes('[심방/기도]')
+    ).length;
+
+    // 받은 메시지 = 선생님이 보낸 메시지 중 미확인 건
+    const unreadMessages = messages.filter(
+      (m) => m.status === 'sent' && m.read !== true
+    ).length;
+
+    // 새친구 = 등록일(joinDate)로부터 30일 이내 학생
+    const newFriends = students.filter(
+      (s) => isRegistered(s) && s.joinDate &&
+        (Date.now() - new Date(s.joinDate).getTime()) / (1000 * 60 * 60 * 24) <= 30
+    ).length;
 
     return {
       registeredCount, c1, c2,
       thisSunStr, rate, present, absent, missing, total,
       overallRate,
       missingClasses,
-      needCheck,
+      visitRequests, unreadMessages, newFriends,
       monthSundayCount: thisMonthSundays.length,
     };
-  }, [students, attendance, classes]);
+  }, [students, attendance, classes, notifications, messages]);
 
   if (loading) return <div className="card text-center text-ink-muted py-8 text-sm">데이터를 불러오는 중...</div>;
 
@@ -222,12 +243,14 @@ function HomeMenu({ onNavigate }) {
             </div>
           </div>
 
-          {/* KPI 4개 */}
-          <div className="grid grid-cols-4 gap-2 md:gap-6 mt-6 pt-5 border-t border-white/20">
+          {/* KPI 6개 */}
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-x-2 gap-y-4 md:gap-6 mt-6 pt-5 border-t border-white/20">
             <KpiTile label="출석" value={stats.present} />
             <KpiTile label="결석" value={stats.absent} />
-            <KpiTile label="미체크" value={stats.missing} />
-            <KpiTile label="확인 필요" value={stats.needCheck} />
+            <KpiTile label="출석미체크" value={stats.missing} />
+            <KpiTile label="심방요청" value={stats.visitRequests} suffix="건" />
+            <KpiTile label="받은 메시지" value={stats.unreadMessages} suffix="건" />
+            <KpiTile label="새친구" value={stats.newFriends} />
           </div>
         </div>
       </div>
@@ -266,9 +289,16 @@ function HomeMenu({ onNavigate }) {
 }
 
 // ═══════════════════════════════════════════════════════
-// 출석현황 — PastAttendance + Analytics
+// 출석 — 하위 탭: 부서별 현황 / 주일별 출석현황 / 전체 출석 현황
 // ═══════════════════════════════════════════════════════
+const ATTENDANCE_SUBS = [
+  { id: 'by_service', label: '부서별 현황' },
+  { id: 'weekly', label: '주일별 출석현황' },
+  { id: 'analytics', label: '전체 출석 현황' },
+];
+
 function AttendanceViewMenu() {
+  const [sub, setSub] = useState('by_service');
   const [students, setStudents] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -292,27 +322,201 @@ function AttendanceViewMenu() {
     return () => { u1(); u2(); u3(); };
   }, []);
 
-  if (loading) return <div className="text-center text-stone-500 py-8 text-sm">불러오는 중...</div>;
+  return (
+    <div>
+      <div className="flex gap-1 mb-4 bg-white/60 rounded-xl p-1 w-fit overflow-x-auto max-w-full">
+        {ATTENDANCE_SUBS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setSub(t.id)}
+            className={`flex-shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+              sub === t.id ? 'bg-white text-teal-700 shadow-sm' : 'text-stone-500 hover:text-stone-800'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="text-center text-stone-500 py-8 text-sm">불러오는 중...</div>
+      ) : (
+        <>
+          {sub === 'by_service' && (
+            <ServiceAttendanceDashboard students={students} attendance={attendance} classes={classes} />
+          )}
+          {sub === 'weekly' && (
+            <PastAttendance attendanceList={attendance} students={students} classes={classes} />
+          )}
+          {sub === 'analytics' && (
+            <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-4">
+              <RegistrationStats />
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// 부서별 현황 — 1부/2부 출석 주요 지표 대시보드
+function ServiceAttendanceDashboard({ students, attendance, classes }) {
+  const data = useMemo(() => {
+    const thisSunStr = getThisSunday();
+    return ['1부', '2부'].map((svc) => {
+      const svcClasses = classes.filter((c) => c.service === svc);
+      const svcClassIds = new Set(svcClasses.map((c) => c.id));
+      const roster = students.filter((s) => isRegistered(s) && s.service === svc);
+      const svcRecords = attendance.filter((a) => svcClassIds.has(a.classId) && a.submitted !== false);
+
+      // 이번 주
+      const thisWeek = svcRecords.filter((a) => a.date === thisSunStr);
+      let present = 0, absent = 0, missing = 0;
+      thisWeek.forEach((rec) => {
+        rec.records?.forEach((r) => {
+          if (r.present === true) present++;
+          else if (r.present === false) absent++;
+          else missing++;
+        });
+      });
+      const checked = present + absent;
+      const rate = checked > 0 ? Math.round((present / checked) * 100) : null;
+      const submittedIds = new Set(thisWeek.map((r) => r.classId));
+      const missingClasses = svcClasses.filter((c) => !submittedIds.has(c.id));
+
+      // 누적 출석률
+      let allPresent = 0, allTotal = 0;
+      svcRecords.forEach((rec) => {
+        rec.records?.forEach((r) => {
+          if (r.present === true) { allPresent++; allTotal++; }
+          else if (r.present === false) { allTotal++; }
+        });
+      });
+      const overallRate = allTotal > 0 ? Math.round((allPresent / allTotal) * 100) : null;
+
+      // 최근 4주 추이 (제출된 기록이 있는 주일 기준, 최신순)
+      const byDate = {};
+      svcRecords.forEach((rec) => {
+        if (rec.date > thisSunStr) return;
+        if (!byDate[rec.date]) byDate[rec.date] = { p: 0, t: 0 };
+        rec.records?.forEach((r) => {
+          if (r.present === true) { byDate[rec.date].p++; byDate[rec.date].t++; }
+          else if (r.present === false) { byDate[rec.date].t++; }
+        });
+      });
+      const trend = Object.keys(byDate)
+        .sort()
+        .slice(-4)
+        .map((d) => ({
+          date: d,
+          rate: byDate[d].t > 0 ? Math.round((byDate[d].p / byDate[d].t) * 100) : null,
+          present: byDate[d].p,
+        }));
+
+      return {
+        svc, roster: roster.length, classCount: svcClasses.length,
+        present, absent, missing, rate, overallRate,
+        submitted: submittedIds.size, missingClasses, trend, thisSunStr,
+      };
+    });
+  }, [students, attendance, classes]);
+
+  const rateColor = (rate) =>
+    rate == null ? 'text-stone-400'
+      : rate >= 80 ? 'text-emerald-600'
+      : rate >= 50 ? 'text-amber-600'
+      : 'text-rose-500';
 
   return (
-    <div className="space-y-5">
-      <PastAttendance attendanceList={attendance} students={students} classes={classes} />
-      <div>
-        <h3 className="text-xs font-medium text-stone-500 mb-2 uppercase tracking-wider ml-1">Analytics</h3>
-        <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-4">
-          <RegistrationStats />
-        </div>
+    <div>
+      <div className="text-xs text-stone-500 mb-3 ml-1">{data[0]?.thisSunStr} 주일 기준</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {data.map((d) => (
+          <div key={d.svc} className="bg-white border border-stone-200 rounded-xl shadow-sm p-5">
+            {/* 헤더 */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="w-9 h-9 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center font-bold text-sm">
+                  {d.svc.slice(0, 1)}
+                </span>
+                <div>
+                  <div className="font-semibold text-stone-900">{d.svc}</div>
+                  <div className="text-[11px] text-stone-500">재적 {d.roster}명 · {d.classCount}개 반</div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className={`text-2xl font-bold ${rateColor(d.rate)}`}>{d.rate == null ? '-' : `${d.rate}%`}</div>
+                <div className="text-[10px] text-stone-400 uppercase tracking-wider">이번 주 출석률</div>
+              </div>
+            </div>
+
+            {/* 이번 주 지표 */}
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              <ServiceStat label="출석" value={d.present} tone="text-emerald-600" />
+              <ServiceStat label="결석" value={d.absent} tone="text-rose-500" />
+              <ServiceStat label="미체크" value={d.missing} tone="text-amber-600" />
+              <ServiceStat label="제출" value={`${d.submitted}/${d.classCount}`} tone="text-stone-800" />
+            </div>
+
+            {/* 누적 출석률 */}
+            <div className="flex items-center justify-between text-sm border-t border-stone-100 pt-3 mb-3">
+              <span className="text-stone-500 text-xs">누적 출석률</span>
+              <span className={`font-bold ${rateColor(d.overallRate)}`}>{d.overallRate == null ? '-' : `${d.overallRate}%`}</span>
+            </div>
+
+            {/* 최근 추이 */}
+            {d.trend.length > 0 && (
+              <div className="mb-3">
+                <div className="text-[11px] text-stone-400 mb-1.5">최근 주일 추이</div>
+                <div className="flex gap-1.5">
+                  {d.trend.map((t) => (
+                    <div key={t.date} className="flex-1 bg-stone-50 border border-stone-100 rounded-lg py-1.5 text-center">
+                      <div className="text-[10px] text-stone-400">{t.date.slice(5).replace('-', '/')}</div>
+                      <div className={`text-sm font-bold ${rateColor(t.rate)}`}>{t.rate == null ? '-' : `${t.rate}%`}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 미제출 반 */}
+            {d.missingClasses.length > 0 && (
+              <div>
+                <div className="text-[11px] text-amber-600 font-medium mb-1.5">⚠ 미제출 {d.missingClasses.length}개 반</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {d.missingClasses.map((c) => (
+                    <span key={c.id} className="text-[11px] bg-amber-50 border border-amber-100 text-amber-700 rounded-md px-2 py-0.5">
+                      {c.teacherName}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {d.missingClasses.length === 0 && (
+              <div className="text-[11px] text-emerald-600 font-medium">✓ 이번 주 모든 반 제출 완료</div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function KpiTile({ label, value }) {
+function ServiceStat({ label, value, tone }) {
+  return (
+    <div className="bg-stone-50 rounded-lg py-2 text-center">
+      <div className="text-[10px] text-stone-400 mb-0.5">{label}</div>
+      <div className={`text-base font-bold ${tone}`}>{value}</div>
+    </div>
+  );
+}
+
+function KpiTile({ label, value, suffix = '명' }) {
   return (
     <div className="text-center">
-      <div className="text-xs text-teal-100 mb-1">{label}</div>
+      <div className="text-xs text-teal-100 mb-1 whitespace-nowrap">{label}</div>
       <div className="text-2xl md:text-3xl font-semibold text-white">{value}</div>
-      <div className="text-[10px] text-teal-100">명</div>
+      <div className="text-[10px] text-teal-100">{suffix}</div>
     </div>
   );
 }
@@ -439,11 +643,13 @@ function TeachersMenu() {
   const [sub, setSub] = useState('cards');
   const [teachers, setTeachers] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let t = false, c = false;
-    const done = () => { if (t && c) setLoading(false); };
+    let t = false, c = false, s = false, a = false;
+    const done = () => { if (t && c && s && a) setLoading(false); };
     const u1 = onSnapshot(collection(db, 'users'), (snap) => {
       setTeachers(snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((u) => u.role === 'teacher' || u.role === 'admin'));
       t = true; done();
@@ -452,7 +658,15 @@ function TeachersMenu() {
       setClasses(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       c = true; done();
     });
-    return () => { u1(); u2(); };
+    const u3 = onSnapshot(collection(db, 'students'), (snap) => {
+      setStudents(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      s = true; done();
+    });
+    const u4 = onSnapshot(collection(db, 'attendance'), (snap) => {
+      setAttendance(snap.docs.map((d) => d.data()));
+      a = true; done();
+    });
+    return () => { u1(); u2(); u3(); u4(); };
   }, []);
 
   return (
@@ -473,7 +687,7 @@ function TeachersMenu() {
       {loading ? (
         <div className="text-center text-stone-500 py-8 text-sm">불러오는 중...</div>
       ) : sub === 'cards' ? (
-        <TeacherCardsList teachers={teachers} classes={classes} />
+        <TeacherCardsList teachers={teachers} classes={classes} students={students} attendance={attendance} />
       ) : (
         <TeacherManagement />
       )}
@@ -482,7 +696,7 @@ function TeachersMenu() {
 }
 
 // 반사(교사) 카드 리스트 — 부서별 그룹핑
-function TeacherCardsList({ teachers, classes }) {
+function TeacherCardsList({ teachers, classes, students, attendance }) {
   const SERVICE_ORDER = ['1부', '2부', '사역팀'];
   const groups = useMemo(() => {
     const g = { '1부': [], '2부': [], '사역팀': [], '기타': [] };
@@ -524,8 +738,15 @@ function TeacherCardsList({ teachers, classes }) {
                         {(t.name || '?').slice(0, 1)}
                       </div>
                       <div className="min-w-0">
-                        <div className="font-semibold text-stone-900 truncate">{t.name || '(이름없음)'}</div>
-                        <div className="text-xs text-stone-500 truncate">{roleLabel}{cls ? ` · ${cls.teacherName}반` : ''}</div>
+                        <div className="font-semibold text-stone-900 truncate">
+                          {t.name || '(이름없음)'}
+                          {cls && (
+                            <span className="ml-1.5 text-xs font-medium text-teal-700">
+                              {cls.name || `${cls.teacherName}반`}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-stone-500 truncate">{roleLabel}{cls ? ` · ${cls.service || ''}` : ''}</div>
                       </div>
                     </div>
                   </button>
@@ -536,7 +757,15 @@ function TeacherCardsList({ teachers, classes }) {
         );
       })}
 
-      {selected && <TeacherInfoModal teacher={selected} classes={classes} onClose={() => setSelected(null)} />}
+      {selected && (
+        <TeacherInfoModal
+          teacher={selected}
+          classes={classes}
+          students={students}
+          attendance={attendance}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </div>
   );
 }
@@ -617,25 +846,63 @@ function AdminOfficeMenu() {
   );
 }
 
-function TeacherInfoModal({ teacher, classes, onClose }) {
+function TeacherInfoModal({ teacher, classes, students = [], attendance = [], onClose }) {
   const cls = classes.find((c) => c.id === teacher.classId);
+
+  // 담당반 학생 + 학생별 출석률 (제출된 반 출석 기록 기준)
+  const classStudents = useMemo(() => {
+    if (!cls) return [];
+    const roster = students
+      .filter((s) => isRegistered(s) && s.classId === cls.id)
+      .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'));
+    const classRecords = attendance.filter((a) => a.classId === cls.id && a.submitted !== false);
+    return roster.map((s) => {
+      const allIds = [s.id, ...(s.alternateIds || [])];
+      let present = 0, total = 0;
+      classRecords.forEach((rec) => {
+        const r = rec.records?.find((rr) => allIds.includes(rr.studentId));
+        if (!r) return;
+        if (r.present === true) { present++; total++; }
+        else if (r.present === false) { total++; }
+      });
+      const rate = total > 0 ? Math.round((present / total) * 100) : null;
+      return { ...s, present, total, rate };
+    });
+  }, [cls, students, attendance]);
+
   const Field = ({ label, value }) => (
     <div>
       <div className="text-xs text-stone-500">{label}</div>
       <div className="text-sm text-stone-900">{value || '-'}</div>
     </div>
   );
+  const rateColor = (rate) =>
+    rate == null ? 'text-stone-400'
+      : rate >= 80 ? 'text-emerald-600'
+      : rate >= 50 ? 'text-amber-600'
+      : 'text-rose-500';
+
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5 max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-bold text-stone-900">{teacher.name} 선생님</h3>
+          <h3 className="text-lg font-bold text-stone-900">
+            {teacher.name} 선생님
+            {cls && (
+              <span className="ml-2 text-sm font-semibold text-teal-700">
+                {cls.name || `${cls.teacherName}반`}
+              </span>
+            )}
+          </h3>
           <button onClick={onClose} className="text-stone-500 hover:text-stone-900">✕</button>
         </div>
         <div className="grid grid-cols-2 gap-3 text-sm">
           <Field label="부서" value={teacher.service} />
           <Field label="역할" value={teacher.ministrySub || teacher.ministryMain} />
-          <Field label="담당반" value={cls?.teacherName ? `${cls.teacherName} 선생님반` : '-'} />
+          <Field label="담당반" value={cls ? (cls.name || `${cls.teacherName} 선생님반`) : '-'} />
           <Field label="연차" value={teacher.tenure} />
           <Field label="성별" value={teacher.gender} />
           <Field label="연락처" value={teacher.phone} />
@@ -644,6 +911,40 @@ function TeacherInfoModal({ teacher, classes, onClose }) {
           <div className="col-span-2"><Field label="주소" value={teacher.address} /></div>
           {teacher.notes && <div className="col-span-2"><Field label="특이사항" value={teacher.notes} /></div>}
         </div>
+
+        {/* 담당반 학생 명단 + 출석률 */}
+        {cls && (
+          <div className="mt-4 pt-4 border-t border-stone-200">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-semibold text-stone-900">우리 반 학생</h4>
+              <span className="text-xs text-stone-500">{classStudents.length}명</span>
+            </div>
+            {classStudents.length === 0 ? (
+              <div className="text-xs text-stone-400 py-2">배정된 학생이 없습니다.</div>
+            ) : (
+              <div className="divide-y divide-stone-100">
+                {classStudents.map((s) => (
+                  <div key={s.id} className="flex items-center justify-between py-2 gap-2">
+                    <span className="text-sm text-stone-800 min-w-0 truncate">
+                      {s.name}
+                      {s.grade && <span className="text-xs text-stone-400 ml-1.5">{s.grade}</span>}
+                    </span>
+                    <span className="flex-shrink-0 text-right">
+                      {s.rate == null ? (
+                        <span className="text-xs text-stone-400">기록 없음</span>
+                      ) : (
+                        <>
+                          <span className={`text-sm font-bold ${rateColor(s.rate)}`}>{s.rate}%</span>
+                          <span className="text-[11px] text-stone-400 ml-1.5">({s.present}/{s.total}주)</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

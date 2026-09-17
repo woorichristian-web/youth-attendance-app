@@ -48,28 +48,28 @@ export default function Navbar() {
 
   const navLinks = isLimited
     ? [
-        { to: '/announcements', label: '메시지' },
+        { to: '/announcements', label: '소통' },
         { to: '/students', label: '사역팀' },
       ]
     : isAdmin
     ? [
         { to: '/admin-home', label: '홈' },
-        { to: '/admin-home?m=attendance_view', label: '출석현황' },
+        { to: '/admin-home?m=attendance_view', label: '출석' },
         { to: '/admin-home?m=students', label: '학생' },
         { to: '/admin-home?m=teachers', label: '선생님' },
         { to: '/admin-home?m=admin_office', label: '목회행정' },
-        { to: '/announcements', label: '메시지' },
+        { to: '/announcements', label: '소통' },
       ]
     : isTeacher
     ? [
         { to: '/teacher-home', label: '홈' },
         { to: '/teacher-home?tab=growth', label: '제자성장' },
         { to: '/teacher-home?tab=songcheong', label: '송청' },
-        { to: '/announcements', label: '메시지' },
+        { to: '/announcements', label: '소통' },
         { to: '/my-page', label: '마이페이지' },
       ]
     : [
-        { to: '/announcements', label: '메시지' },
+        { to: '/announcements', label: '소통' },
       ];
 
   const isActive = (to) => {
