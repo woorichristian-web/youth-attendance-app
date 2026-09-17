@@ -11,6 +11,7 @@ import ExcelExport from '../components/admin/ExcelExport';
 import OfficerManagement from '../components/admin/OfficerManagement';
 import DiscipleshipManagement from '../components/admin/DiscipleshipManagement';
 import GrowthBoard from '../components/admin/GrowthBoard';
+import OfferingManager from '../components/admin/OfferingManager';
 import PastAttendance from '../components/dashboard/PastAttendance';
 import RedFlagList from '../components/dashboard/RedFlagList';
 import AttendanceRateDistribution from '../components/dashboard/AttendanceRateDistribution';
@@ -78,8 +79,8 @@ export default function AdminAppPage() {
           { id: 'attend', label: '출석 관리', icon: <IconClipboard className="w-5 h-5" />, target: 'students' },
           { id: 'pastoral', label: '목양 · 장결자', icon: <IconUsers className="w-5 h-5" />, target: 'students' },
           { id: 'growth', label: '성장 통계', icon: <IconChart className="w-5 h-5" />, target: 'students' },
-          { id: 'finance', label: '재정 센터', icon: <IconWallet className="w-5 h-5" />, target: 'offering' },
-          { id: 'sunday', label: '주일보고', icon: <IconAlert className="w-5 h-5" />, target: 'sunday_report' },
+          { id: 'finance', label: '재정 센터', icon: <IconWallet className="w-5 h-5" />, target: 'admin_office' },
+          { id: 'sunday', label: '주일보고', icon: <IconAlert className="w-5 h-5" />, target: 'admin_office' },
           { id: 'retreat', label: '수련회', icon: <IconArrowRight className="w-5 h-5" />, target: 'retreat' },
         ]}
         onSelect={(it) => setMenu(it.target)}
@@ -583,7 +584,7 @@ function AdminOfficeMenu() {
         ))}
       </div>
       {sub === 'sunday_report' && <PlaceholderMenu title="주일보고" desc="주일 예배 요약, 참석 성도, 특이사항을 기록합니다." />}
-      {sub === 'offering' && <PlaceholderMenu title="헌금" desc="주별 헌금 기록과 통계를 관리합니다." />}
+      {sub === 'offering' && <OfferingManager />}
       {sub === 'data_download' && (
         loading ? (
           <div className="text-center text-stone-500 py-8 text-sm">불러오는 중...</div>

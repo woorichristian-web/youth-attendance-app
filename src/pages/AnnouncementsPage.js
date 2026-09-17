@@ -134,6 +134,7 @@ export default function AnnouncementsPage() {
   // 메시지 전송·수정·삭제는 관리자(전호진·강현미·전성배·김정나) 모두 가능
   const canSend = isAdmin;
   const [teacherTab, setTeacherTab] = useState('received'); // 교사 화면: received | sent
+  const [adminTab, setAdminTab] = useState('received'); // 관리자 화면: received | sent
   const [announcements, setAnnouncements] = useState([]);
   const [page, setPage] = useState(0);
   const [showForm, setShowForm] = useState(false);
@@ -161,8 +162,10 @@ export default function AnnouncementsPage() {
   }, [isAdmin]);
 
   const visible = announcements.filter((a) => canViewAnnouncement(a, userProfile, isAdmin));
-  // 교사 화면: '받은 메시지' 탭에서만 알림 리스트 표시
-  const showAnnouncements = !isTeacher || isAdmin || teacherTab === 'received';
+  // 알림 리스트 표시 여부: 교사는 '받은 메시지' 탭, 관리자는 '보낸 메시지' 탭에서
+  const showAnnouncements = isAdmin
+    ? adminTab === 'sent'
+    : (!isTeacher || teacherTab === 'received');
   const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const pageItems = visible.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
@@ -251,6 +254,26 @@ export default function AnnouncementsPage() {
 
   return (
     <div className={`max-w-3xl mx-auto px-4 py-6 ${isAdmin ? 'admin-theme' : ''}`}>
+      {/* 관리자: 받은/보낸 메시지 탭 */}
+      {isAdmin && (
+        <div className="flex gap-1 mb-4 bg-white border border-stone-200 rounded-xl p-1 w-fit shadow-sm">
+          {[
+            { id: 'received', label: '받은 메시지' },
+            { id: 'sent', label: '보낸 메시지' },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setAdminTab(t.id)}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                adminTab === t.id ? 'bg-teal-600 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* 교사: 목사님께 메시지 보내기 */}
       {isTeacher && !isAdmin && <TeacherMessageComposer />}
 
@@ -494,8 +517,10 @@ export default function AnnouncementsPage() {
         </div>
       )}
 
-      {/* 하단: 주고받은 메시지 기록 */}
-      {isAdmin && <AdminMessageInbox />}
+      {/* 관리자: 탭에 따른 선생님 메시지 목록 */}
+      {isAdmin && <AdminMessageInbox mode={adminTab} />}
+
+      {/* 교사: 탭에 따른 주고받은 메시지 기록 */}
       {isTeacher && !isAdmin && <TeacherMessageHistory mode={teacherTab} />}
     </div>
   );

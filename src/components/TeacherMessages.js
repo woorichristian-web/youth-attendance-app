@@ -336,15 +336,21 @@ export function TeacherMessageHistory({ mode }) {
 // ────────────────────────────────────────────────────────
 // 관리자용: 선생님 메시지함 (기록 + 답장) — 페이지 하단
 // ────────────────────────────────────────────────────────
-export function AdminMessageInbox() {
+export function AdminMessageInbox({ mode }) {
   const { userProfile } = useAuth();
   const [messages, setMessages] = useState([]);
   const [replyFor, setReplyFor] = useState(null); // 답장 작성 중인 메시지 id
   const [replyText, setReplyText] = useState('');
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState('received'); // received | sent
+  const [innerTab, setInnerTab] = useState('received'); // received | sent (mode 미지정 시)
   const [page, setPage] = useState(0);
   const [expandedId, setExpandedId] = useState(null);
+  const tab = mode || innerTab;
+
+  useEffect(() => {
+    setPage(0);
+    setExpandedId(null);
+  }, [mode]);
 
   useEffect(() => {
     const u = onSnapshot(collection(db, 'teacher_messages'), (snap) => {
@@ -389,7 +395,7 @@ export function AdminMessageInbox() {
     await deleteDoc(doc(db, 'teacher_messages', m.id));
   }
 
-  if (messages.length === 0) return null;
+  if (!mode && messages.length === 0) return null;
 
   // 보낸 메시지 = 내가 보낸 답장들 (최신순)
   const sentReplies = messages
@@ -400,24 +406,33 @@ export function AdminMessageInbox() {
   const pageItems = list.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
-    <div className="mt-8">
+    <div className={mode ? 'mt-2' : 'mt-8'}>
       <div className="flex items-center gap-2 px-1 mb-2 font-bold text-stone-800 text-sm">
-        📨 선생님 메시지함
-        {unread > 0 && (
+        {mode
+          ? (tab === 'received' ? '📨 선생님이 보낸 메시지' : '↩ 내가 보낸 답장')
+          : '📨 선생님 메시지함'}
+        {tab === 'received' && unread > 0 && (
           <span className="bg-rose-500 text-white text-[11px] px-2 py-0.5 rounded-full font-semibold">
             새 메시지 {unread}
           </span>
         )}
       </div>
-      <TabButtons
-        accent="teal"
-        tabs={[
-          { id: 'received', label: `받은 메시지 (${messages.length})` },
-          { id: 'sent', label: `보낸 메시지 (${sentReplies.length})` },
-        ]}
-        active={tab}
-        onSelect={(t) => { setTab(t); setPage(0); setExpandedId(null); }}
-      />
+      {!mode && (
+        <TabButtons
+          accent="teal"
+          tabs={[
+            { id: 'received', label: `받은 메시지 (${messages.length})` },
+            { id: 'sent', label: `보낸 메시지 (${sentReplies.length})` },
+          ]}
+          active={tab}
+          onSelect={(t) => { setInnerTab(t); setPage(0); setExpandedId(null); }}
+        />
+      )}
+      {tab === 'received' && messages.length === 0 && (
+        <div className="bg-white border border-stone-200 rounded-xl shadow-sm px-4 py-6 text-center text-sm text-stone-400">
+          아직 선생님이 보낸 메시지가 없습니다.
+        </div>
+      )}
 
       {tab === 'sent' && (
         <div className="space-y-2">
