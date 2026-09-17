@@ -12,6 +12,8 @@ import OfficerManagement from '../components/admin/OfficerManagement';
 import DiscipleshipManagement from '../components/admin/DiscipleshipManagement';
 import GrowthBoard from '../components/admin/GrowthBoard';
 import OfferingManager from '../components/admin/OfferingManager';
+import WeeklyReport from '../components/admin/WeeklyReport';
+import RetreatManager from '../components/admin/RetreatManager';
 import PastAttendance from '../components/dashboard/PastAttendance';
 import RedFlagList from '../components/dashboard/RedFlagList';
 import AttendanceRateDistribution from '../components/dashboard/AttendanceRateDistribution';
@@ -545,6 +547,7 @@ function TeacherCardsList({ teachers, classes }) {
 const ADMIN_OFFICE_SUBS = [
   { id: 'sunday_report', label: '주일보고' },
   { id: 'offering', label: '헌금' },
+  { id: 'retreat', label: '수련회' },
   { id: 'data_download', label: '데이터다운로드' },
 ];
 
@@ -552,11 +555,12 @@ function AdminOfficeMenu() {
   const [sub, setSub] = useState('sunday_report');
   const [classes, setClasses] = useState([]);
   const [students, setStudents] = useState([]);
+  const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let s = false, c = false;
-    const done = () => { if (s && c) setLoading(false); };
+    let s = false, c = false, a = false;
+    const done = () => { if (s && c && a) setLoading(false); };
     const u1 = onSnapshot(collection(db, 'students'), (snap) => {
       setStudents(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       s = true; done();
@@ -565,8 +569,14 @@ function AdminOfficeMenu() {
       setClasses(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       c = true; done();
     });
-    return () => { u1(); u2(); };
+    const u3 = onSnapshot(collection(db, 'attendance'), (snap) => {
+      setAttendance(snap.docs.map((d) => d.data()));
+      a = true; done();
+    });
+    return () => { u1(); u2(); u3(); };
   }, []);
+
+  const registered = students.filter(isRegistered);
 
   return (
     <div>
@@ -583,8 +593,17 @@ function AdminOfficeMenu() {
           </button>
         ))}
       </div>
-      {sub === 'sunday_report' && <PlaceholderMenu title="주일보고" desc="주일 예배 요약, 참석 성도, 특이사항을 기록합니다." />}
+      {sub === 'sunday_report' && (
+        loading
+          ? <div className="text-center text-stone-500 py-8 text-sm">불러오는 중...</div>
+          : <WeeklyReport attendanceList={attendance} classes={classes} students={registered} />
+      )}
       {sub === 'offering' && <OfferingManager />}
+      {sub === 'retreat' && (
+        loading
+          ? <div className="text-center text-stone-500 py-8 text-sm">불러오는 중...</div>
+          : <RetreatManager students={registered} classes={classes} />
+      )}
       {sub === 'data_download' && (
         loading ? (
           <div className="text-center text-stone-500 py-8 text-sm">불러오는 중...</div>

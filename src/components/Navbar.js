@@ -57,9 +57,7 @@ export default function Navbar() {
         { to: '/admin-home?m=attendance_view', label: '출석현황' },
         { to: '/admin-home?m=students', label: '학생' },
         { to: '/admin-home?m=teachers', label: '선생님' },
-        { to: '/admin-home?m=sunday_report', label: '주일보고' },
-        { to: '/admin-home?m=offering', label: '헌금' },
-        { to: '/admin-home?m=retreat', label: '수련회' },
+        { to: '/admin-home?m=admin_office', label: '목회행정' },
         { to: '/announcements', label: '메시지' },
       ]
     : isTeacher
