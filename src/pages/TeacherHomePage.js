@@ -5,6 +5,7 @@ import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import AttendanceSheet from '../components/attendance/AttendanceSheet';
 import { getThisSunday, formatDateKo, isValidSunday } from '../utils/dateUtils';
+import { isRegistered } from '../utils/statusUtils';
 
 // 두 날짜 사이 일요일 개수
 function countSundaysBetween(start, end) {
@@ -185,7 +186,12 @@ function ClassAttendanceSummary({ classId }) {
     let s = false, a = false;
     const done = () => { if (s && a) setLoading(false); };
     const u1 = onSnapshot(collection(db, 'students'), (snap) => {
-      setStudents(snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((x) => x.classId === classId));
+      // 타교회 이동 등 비재적 학생은 우리반 출석현황에서 제외
+      setStudents(
+        snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+          .filter((x) => x.classId === classId)
+          .filter(isRegistered)
+      );
       s = true; done();
     });
     const u2 = onSnapshot(collection(db, 'attendance'), (snap) => {
@@ -320,6 +326,7 @@ function GrowthSection({ classId, teacherName }) {
     const u1 = onSnapshot(collection(db, 'students'), (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
         .filter((x) => x.classId === classId)
+        .filter(isRegistered) // 타교회 이동 등 비재적 학생 제외
         .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'));
       setStudents(list);
       s = true; done();
@@ -475,30 +482,51 @@ function GrowthSection({ classId, teacherName }) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      {/* 가로형 카드 세로 리스트 */}
+      <div className="space-y-2.5">
         {categories.map((cat) => {
           const totalGiven = students.reduce((sum, s) => sum + ((counts[s.id] || {})[cat.id] || 0), 0);
           return (
-            <div key={cat.id} className="card relative hover:shadow-soft transition-all">
+            <div key={cat.id} className="card flex items-center gap-4 py-3.5 hover:shadow-soft transition-all">
               <button
                 onClick={() => setSelectedCat(cat.id)}
-                className="w-full text-left"
+                className="flex-1 flex items-center gap-4 text-left min-w-0"
               >
-                <div className="text-4xl mb-2">{cat.emoji}</div>
-                <div className="font-bold text-ink">{cat.name}</div>
-                <div className="text-xs text-ink-muted mt-1">한 번당 +{cat.points}P</div>
-                <div className="text-xs text-ocean-600 mt-1">이번 학기 부여 {totalGiven}회</div>
+                <div className="text-4xl flex-shrink-0">{cat.emoji}</div>
+                <div className="min-w-0">
+                  <div className="font-bold text-ink truncate">{cat.name}</div>
+                  <div className="text-xs text-ink-muted mt-0.5">한 번당 +{cat.points}P</div>
+                </div>
+                <div className="ml-auto text-right flex-shrink-0 pr-1">
+                  <div className="text-sm font-bold text-ocean-600">{totalGiven}회</div>
+                  <div className="text-[10px] text-ink-muted">이번 학기 부여</div>
+                </div>
               </button>
-              <button
-                onClick={() => removeCategory(cat.id)}
-                className="absolute top-2 right-2 text-xs text-stone-300 hover:text-rose-500 opacity-0 hover:opacity-100 group-hover:opacity-100"
-                title="카드 삭제"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-1 flex-shrink-0 border-l border-ocean-100 pl-3">
+                <button
+                  onClick={() => setSelectedCat(cat.id)}
+                  className="text-xs px-3 py-1.5 bg-ocean-100 text-ocean-700 rounded-full font-medium hover:bg-ocean-200/70"
+                >
+                  주기
+                </button>
+                <button
+                  onClick={() => removeCategory(cat.id)}
+                  className="w-8 h-8 flex items-center justify-center text-stone-400 hover:text-rose-500 hover:bg-rose-50 rounded-full transition-colors"
+                  title="카드 삭제"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                  </svg>
+                </button>
+              </div>
             </div>
           );
         })}
+        {categories.length === 0 && (
+          <div className="card text-center text-ink-muted py-6 text-sm">
+            스티커 카드가 없습니다. '+ 카드 추가'로 만들어주세요.
+          </div>
+        )}
       </div>
     </div>
   );

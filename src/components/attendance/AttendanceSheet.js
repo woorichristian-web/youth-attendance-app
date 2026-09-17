@@ -12,6 +12,7 @@ import {
 import { db } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDateKo } from '../../utils/dateUtils';
+import { isRegistered } from '../../utils/statusUtils';
 
 export default function AttendanceSheet({ date, service, teacher, classId }) {
   const { currentUser } = useAuth();
@@ -38,7 +39,10 @@ export default function AttendanceSheet({ date, service, teacher, classId }) {
           where('active', '==', true)
         );
         const studentsSnap = await getDocs(studentsQ);
-        const studentList = studentsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        // 타교회 이동 등 비재적 학생은 반 출석 명단에서 제외
+        const studentList = studentsSnap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter(isRegistered);
         studentList.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
         setStudents(studentList);
 

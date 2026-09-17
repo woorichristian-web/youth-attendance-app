@@ -14,7 +14,7 @@ import PastAttendance from '../components/dashboard/PastAttendance';
 import RedFlagList from '../components/dashboard/RedFlagList';
 import AttendanceRateDistribution from '../components/dashboard/AttendanceRateDistribution';
 import FloatingQuickBar from '../components/admin/FloatingQuickBar';
-import { getSundaysInMonth } from '../utils/dateUtils';
+import { getSundaysInMonth, getThisSunday } from '../utils/dateUtils';
 import { filterExcludedSundays } from '../utils/excludedDates';
 
 const TOP_MENUS = [
@@ -122,10 +122,8 @@ function HomeMenu({ onNavigate }) {
     const c1 = students.filter((s) => isRegistered(s) && s.service === '1부').length;
     const c2 = students.filter((s) => isRegistered(s) && s.service === '2부').length;
 
-    const day = now.getDay();
-    const thisSun = new Date(now);
-    thisSun.setDate(now.getDate() - day);
-    const thisSunStr = thisSun.toISOString().slice(0, 10);
+    // 주의: toISOString()은 UTC 기준이라 한국 시간과 하루 어긋날 수 있음 → 로컬 기준 계산 사용
+    const thisSunStr = getThisSunday();
     const thisMonthSundays = filterExcludedSundays(getSundaysInMonth(yr, mn));
 
     const thisWeek = attendance.filter((a) => a.date === thisSunStr);
