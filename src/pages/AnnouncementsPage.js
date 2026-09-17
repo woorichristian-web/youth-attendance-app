@@ -4,7 +4,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { TeacherMessageComposer, AdminMessageInbox } from '../components/TeacherMessages';
+import { TeacherMessageComposer, TeacherMessageHistory, AdminMessageInbox } from '../components/TeacherMessages';
 
 export const TARGET_OPTIONS = [
   { value: '전체',   label: '전체',     color: 'bg-stone-100 text-stone-700' },
@@ -237,9 +237,6 @@ export default function AnnouncementsPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
-      {/* 관리자: 선생님들이 보낸 메시지함 */}
-      {isAdmin && <AdminMessageInbox />}
-
       {/* 교사: 목사님께 메시지 보내기 */}
       {isTeacher && !isAdmin && <TeacherMessageComposer />}
 
@@ -456,6 +453,10 @@ export default function AnnouncementsPage() {
           >다음</button>
         </div>
       )}
+
+      {/* 하단: 주고받은 메시지 기록 */}
+      {isAdmin && <AdminMessageInbox />}
+      {isTeacher && !isAdmin && <TeacherMessageHistory />}
     </div>
   );
 }
