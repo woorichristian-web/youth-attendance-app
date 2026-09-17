@@ -28,16 +28,18 @@ const emptyForm = {
   name: '', service: '1부', className: '', email: '', password: '',
   gender: '', tenure: '', phone: '', address: '',
   ministryMain: '', ministrySub: '',
+  assistClassId: '', // 보조교사 배정 반
   teacherStatus: 'active', statusReason: '',
   notes: '',
   songchungYears: [], // [{year, grade}]
 };
 
 const CATEGORY_TABS = [
-  { key: '교사',   label: '교사',   match: (t) => !t.ministryMain || t.ministryMain === '교사' },
-  { key: '스텝',   label: '스텝',   match: (t) => t.ministryMain === '예배팀' },
-  { key: '찬양팀', label: '찬양팀', match: (t) => t.ministryMain === '찬양팀' },
-  { key: '행정팀', label: '행정팀', match: (t) => t.ministryMain === '행정팀' },
+  { key: '교사',   label: '교사',   match: (t) => t.teacherStatus !== 'resigned' && (!t.ministryMain || t.ministryMain === '교사') },
+  { key: '스텝',   label: '스텝',   match: (t) => t.teacherStatus !== 'resigned' && t.ministryMain === '예배팀' },
+  { key: '찬양팀', label: '찬양팀', match: (t) => t.teacherStatus !== 'resigned' && t.ministryMain === '찬양팀' },
+  { key: '행정팀', label: '행정팀', match: (t) => t.teacherStatus !== 'resigned' && t.ministryMain === '행정팀' },
+  { key: '사임교사', label: '사임교사', match: (t) => t.teacherStatus === 'resigned' },
 ];
 
 export default function TeacherManagement({ classes = [], onClassesChange }) {
@@ -49,6 +51,7 @@ export default function TeacherManagement({ classes = [], onClassesChange }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('교사');
+  const [searchQuery, setSearchQuery] = useState('');
 
   async function loadTeachers() {
     setLoading(true);
@@ -82,6 +85,7 @@ export default function TeacherManagement({ classes = [], onClassesChange }) {
       address: teacher.address || '',
       ministryMain: teacher.ministryMain || '',
       ministrySub: teacher.ministrySub || '',
+      assistClassId: teacher.assistClassId || '',
       teacherStatus: teacher.teacherStatus || 'active',
       statusReason: teacher.statusReason || '',
       notes: teacher.notes || '',
@@ -151,11 +155,16 @@ export default function TeacherManagement({ classes = [], onClassesChange }) {
         active: !isInactive,
       };
 
+      const isAssistant = form.ministrySub === '보조교사';
+      const assistClassId = isAssistant ? (form.assistClassId || null) : null;
+
       if (editId) {
         const cls = classes.find((c) => c.teacherId === editId);
         await updateDoc(doc(db, 'users', editId), {
           ...profileData,
-          classId: cls?.id || null,
+          assistClassId,
+          // 자기 반이 없는 보조교사는 배정 반을 담당반으로 연결 (교사 카드·팝업에 표시)
+          classId: cls?.id || assistClassId || null,
         });
         if (cls) {
           const currentYear = new Date().getFullYear();
@@ -169,18 +178,29 @@ export default function TeacherManagement({ classes = [], onClassesChange }) {
       } else {
         const userCred = await createUserWithEmailAndPassword(auth, form.email.trim(), form.password);
         const uid = userCred.user.uid;
-        const classRef = await addDoc(collection(db, 'classes'), {
-          name: form.className.trim() || `${form.name.trim()} 선생님반`,
-          service: form.service,
-          teacherId: uid,
-          teacherName: form.name.trim(),
-        });
-        await setDoc(doc(db, 'users', uid), {
-          ...profileData,
-          role: 'teacher',
-          email: form.email.trim(),
-          classId: classRef.id,
-        });
+        if (isAssistant) {
+          // 보조교사는 자기 반을 새로 만들지 않고 배정 반에 연결
+          await setDoc(doc(db, 'users', uid), {
+            ...profileData,
+            role: 'teacher',
+            email: form.email.trim(),
+            assistClassId,
+            classId: assistClassId || null,
+          });
+        } else {
+          const classRef = await addDoc(collection(db, 'classes'), {
+            name: form.className.trim() || `${form.name.trim()} 선생님반`,
+            service: form.service,
+            teacherId: uid,
+            teacherName: form.name.trim(),
+          });
+          await setDoc(doc(db, 'users', uid), {
+            ...profileData,
+            role: 'teacher',
+            email: form.email.trim(),
+            classId: classRef.id,
+          });
+        }
       }
       setShowForm(false);
       loadTeachers();
@@ -206,6 +226,25 @@ export default function TeacherManagement({ classes = [], onClassesChange }) {
 
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 text-sm text-blue-700">
         💡 교사를 추가하면 자동으로 Firebase 계정이 생성됩니다.
+      </div>
+
+      {/* 교사 검색 */}
+      <div className="relative mb-3">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+        <input
+          className="input pl-9 pr-9"
+          placeholder="교사 이름·연락처·부서·역할로 검색"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       {/* 교사 추가/수정 폼 */}
@@ -348,6 +387,28 @@ export default function TeacherManagement({ classes = [], onClassesChange }) {
                       </div>
                     </div>
                   )}
+                  {/* 보조교사: 배정 반 선택 */}
+                  {form.ministrySub === '보조교사' && (
+                    <div>
+                      <label className="label">배정 반 (어느 반 보조인가요?)</label>
+                      <select
+                        className="input"
+                        value={form.assistClassId}
+                        onChange={(e) => setForm({ ...form, assistClassId: e.target.value })}
+                      >
+                        <option value="">배정 반 선택 안 함</option>
+                        {[...classes]
+                          .sort((a, b) =>
+                            (a.service || '').localeCompare(b.service || '', 'ko') ||
+                            (a.teacherName || '').localeCompare(b.teacherName || '', 'ko'))
+                          .map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.service} · {c.name || `${c.teacherName} 선생님반`}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
               </section>
 
@@ -480,12 +541,24 @@ export default function TeacherManagement({ classes = [], onClassesChange }) {
         <div className="space-y-2">
           {(() => {
             const matchFn = CATEGORY_TABS.find((t) => t.key === activeTab)?.match || (() => true);
-            const filteredTeachers = teachers.filter(matchFn);
+            const q = searchQuery.trim().toLowerCase();
+            // 검색 중에는 카테고리 탭과 무관하게 전체 교사에서 찾는다
+            const filteredTeachers = (q ? teachers : teachers.filter(matchFn)).filter((t) => {
+              if (!q) return true;
+              const cls = classes.find((c) => c.teacherId === t.id);
+              return [t.name, t.phone, t.service, t.ministryMain, t.ministrySub, t.tenure, t.email, cls?.name]
+                .some((v) => v && String(v).toLowerCase().includes(q));
+            });
             if (filteredTeachers.length === 0) {
-              return <div className="text-center py-8 text-gray-400">등록된 {activeTab}가 없습니다.</div>;
+              return (
+                <div className="text-center py-8 text-gray-400">
+                  {q ? `'${searchQuery}' 검색 결과가 없습니다.` : `등록된 ${activeTab}가 없습니다.`}
+                </div>
+              );
             }
             return filteredTeachers.map((teacher) => {
             const cls = classes.find((c) => c.teacherId === teacher.id);
+            const assistCls = teacher.assistClassId ? classes.find((c) => c.id === teacher.assistClassId) : null;
             const isInactive = teacher.teacherStatus && teacher.teacherStatus !== 'active';
             return (
               <div key={teacher.id}
@@ -504,7 +577,7 @@ export default function TeacherManagement({ classes = [], onClassesChange }) {
                     {statusBadge(teacher.teacherStatus || 'active')}
                   </div>
                   <div className="text-xs text-gray-400 mt-0.5">
-                    {teacher.service} · {cls?.name || '반 없음'}
+                    {teacher.service} · {cls?.name || (assistCls ? `보조 배정: ${assistCls.name || `${assistCls.teacherName} 선생님반`}` : '반 없음')}
                     {teacher.ministryMain && ` · ${teacher.ministryMain}${teacher.ministrySub ? ' / ' + teacher.ministrySub : ''}`}
                   </div>
                   {teacher.phone && (
