@@ -174,13 +174,14 @@ function AttendSection({ classId, service, teacherName }) {
       )}
 
       {sub === 'summary' && <ClassAttendanceSummary classId={classId} />}
-      {sub === 'weekly' && <WeeklyAttendanceSection />}
+      {sub === 'weekly' && <WeeklyAttendanceSection classId={classId} />}
     </div>
   );
 }
 
-// 주일별 출석현황 — 어드민과 동일한 주별 달력 뷰 (전체 부서·반)
-function WeeklyAttendanceSection() {
+// 주일별 출석기록 — 주별 달력 뷰
+// 반 선생님은 자기 반 기록만 볼 수 있다 (전체 현황은 어드민 전용)
+function WeeklyAttendanceSection({ classId }) {
   const [students, setStudents] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -190,24 +191,31 @@ function WeeklyAttendanceSection() {
     let s = false, a = false, c = false;
     const done = () => { if (s && a && c) setLoading(false); };
     const u1 = onSnapshot(collection(db, 'students'), (snap) => {
-      setStudents(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setStudents(snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((st) => st.classId === classId));
       s = true; done();
     });
     const u2 = onSnapshot(collection(db, 'attendance'), (snap) => {
-      setAttendance(snap.docs.map((d) => d.data()));
+      setAttendance(snap.docs.map((d) => d.data()).filter((a2) => a2.classId === classId));
       a = true; done();
     });
     const u3 = onSnapshot(collection(db, 'classes'), (snap) => {
-      setClasses(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setClasses(snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((c2) => c2.id === classId));
       c = true; done();
     });
     return () => { u1(); u2(); u3(); };
-  }, []);
+  }, [classId]);
 
   if (loading) {
     return <div className="card text-center text-ink-muted py-8 text-sm">불러오는 중...</div>;
   }
-  return <PastAttendance attendanceList={attendance} students={students} classes={classes} />;
+  return (
+    <div>
+      <div className="card bg-white/70 text-xs text-ink-muted mb-3">
+        우리 반 기준의 주일별 기록입니다. (부서 전체 현황은 관리자 화면에서 볼 수 있어요)
+      </div>
+      <PastAttendance attendanceList={attendance} students={students} classes={classes} />
+    </div>
+  );
 }
 
 function ClassAttendanceSummary({ classId }) {
