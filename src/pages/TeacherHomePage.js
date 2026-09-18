@@ -5,6 +5,7 @@ import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import AttendanceSheet from '../components/attendance/AttendanceSheet';
 import PastAttendance from '../components/dashboard/PastAttendance';
+import StudentDashboardPage from './StudentDashboardPage';
 import { getThisSunday, formatDateKo, isValidSunday } from '../utils/dateUtils';
 import { isRegistered } from '../utils/statusUtils';
 
@@ -104,7 +105,7 @@ export default function TeacherHomePage() {
 
       {tab === 'attend' && <AttendSection classId={myClassId} service={myService} teacherName={userProfile?.name} />}
       {tab === 'growth' && <GrowthSection classId={myClassId} teacherName={userProfile?.name} />}
-      {tab === 'songcheong' && <SongCheongSection />}
+      {tab === 'songcheong' && <StudentDashboardPage embedded />}
     </div>
   );
 }
@@ -658,62 +659,5 @@ function GrowthSection({ classId, teacherName }) {
   );
 }
 
-// ────────────────────────────────────────────────────────
-// 송청 섹션 (임원 / 사역팀 소개)
-// ────────────────────────────────────────────────────────
-function SongCheongSection() {
-  const [students, setStudents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const currentYear = new Date().getFullYear();
-
-  useEffect(() => {
-    getDocs(collection(db, 'students')).then((snap) => {
-      setStudents(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    });
-  }, []);
-
-  if (loading) return <div className="card text-center text-ink-muted py-6 text-sm">불러오는 중...</div>;
-
-  const officerRoles = ['회장', '부회장', '총무'];
-  const teamRoles = ['찬양팀', '예배팀'];
-
-  const hasRole = (s, role) => (s.ministryTeams || []).some((m) =>
-    Number(m.year) === currentYear &&
-    (m.departments || (m.department ? [m.department] : [])).includes(role)
-  );
-
-  return (
-    <div className="space-y-4">
-      {['1부', '2부'].map((svc) => (
-        <div key={svc} className="card">
-          <div className="font-bold text-ink mb-3">🎗 {svc} 임원</div>
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            {officerRoles.map((role) => {
-              const members = students.filter((s) => s.service === svc && hasRole(s, role));
-              return (
-                <div key={role} className="rounded-xl border border-ocean-100 bg-white/70 p-3 text-center">
-                  <div className="text-xs text-ocean-600 font-semibold mb-1">{role}</div>
-                  <div className="text-sm text-ink">
-                    {members.length > 0 ? members.map((m) => m.name).join(', ') : <span className="text-ink-muted">-</span>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          {teamRoles.map((team) => {
-            const members = students.filter((s) => s.service === svc && hasRole(s, team));
-            return (
-              <div key={team} className="border-t border-ocean-100 pt-3 mt-3">
-                <div className="text-sm font-bold text-ocean-700 mb-1.5">🎵 {team} ({members.length})</div>
-                <div className="text-sm text-ink-soft">
-                  {members.length > 0 ? members.map((m) => m.name).join(', ') : <span className="text-ink-muted">-</span>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ))}
-    </div>
-  );
-}
+// 송청 섹션은 StudentDashboardPage(embedded)를 사용
+// — 임원 / 찬양팀·예배팀 / 에클레시아 / 교사 명단 카드형 탭

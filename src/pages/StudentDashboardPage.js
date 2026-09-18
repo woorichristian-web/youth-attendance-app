@@ -11,7 +11,8 @@ const TABS = [
   { icon: '🧑‍🏫', label: '교사 명단' },
 ];
 
-export default function StudentDashboardPage() {
+// embedded=true 로 렌더하면 (교사 홈 송청 탭) 바깥 컨테이너와 제목 없이 내용만 표시
+export default function StudentDashboardPage({ embedded = false }) {
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
   const [teachers, setTeachers] = useState([]);
@@ -94,12 +95,12 @@ export default function StudentDashboardPage() {
     .sort((a, b) => a.school.localeCompare(b.school, 'ko'));
 
   if (loading) {
-    return <div className="max-w-3xl mx-auto px-4 py-12 text-center text-gray-400">불러오는 중...</div>;
+    return <div className={embedded ? 'py-8 text-center text-gray-400' : 'max-w-3xl mx-auto px-4 py-12 text-center text-gray-400'}>불러오는 중...</div>;
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6">
-      <h1 className="text-2xl font-bold text-gray-800 mb-4">🙏 사역팀 & 기도모임</h1>
+    <div className={embedded ? '' : 'max-w-3xl mx-auto px-4 py-6'}>
+      {!embedded && <h1 className="text-2xl font-bold text-gray-800 mb-4">🙏 사역팀 & 기도모임</h1>}
 
       {/* 카드형 탭 (임원 / 찬양팀·예배팀 / 에클레시아) */}
       <div className="space-y-2.5 mb-5">
