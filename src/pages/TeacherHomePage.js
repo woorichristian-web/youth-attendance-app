@@ -85,7 +85,9 @@ function MetricPill({ label, value, tone }) {
 export default function TeacherHomePage() {
   const { userProfile, currentUser } = useAuth();
   const [searchParams] = useSearchParams();
-  const tab = searchParams.get('tab') || 'attend';
+  const rawTab = searchParams.get('tab') || 'attend';
+  // 제자성장(실천 카드)은 임시 숨김 — 주소로 직접 접근해도 홈(출석)으로 대체
+  const tab = rawTab === 'growth' ? 'attend' : rawTab;
 
   const myClassId = userProfile?.classId;
   const myService = userProfile?.service;

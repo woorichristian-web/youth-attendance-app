@@ -64,7 +64,8 @@ export default function Navbar() {
     : isTeacher
     ? [
         { to: '/teacher-home', label: '홈' },
-        { to: '/teacher-home?tab=growth', label: '제자성장' },
+        // 제자성장(실천 카드)은 임시 숨김 — 어드민의 '실천 카드' 탭은 유지
+        // { to: '/teacher-home?tab=growth', label: '제자성장' },
         { to: '/teacher-home?tab=songcheong', label: '송청' },
         { to: '/announcements', label: '소통' },
         { to: '/my-page', label: '마이페이지' },
