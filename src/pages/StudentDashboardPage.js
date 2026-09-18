@@ -222,6 +222,16 @@ export default function StudentDashboardPage({ embedded = false }) {
         const order = ['1부', '2부', '사역팀'];
         return (
           <div className="space-y-4">
+            {/* 사역자 — 맨 위 고정 */}
+            <div className="card">
+              <div className="font-bold text-gray-800 mb-2 pb-2 border-b border-gray-100">
+                사역자 <span className="text-xs text-gray-400 font-normal">(1명)</span>
+              </div>
+              <div className="flex items-center justify-between text-sm py-0.5">
+                <span className="font-medium text-gray-800">전호진</span>
+                <span className="text-xs text-gray-500">목사님</span>
+              </div>
+            </div>
             {order.map((g) => {
               const list = groups[g];
               if (list.length === 0) return null;
