@@ -55,12 +55,17 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
+  // 소통(메시지) 관리 권한 — 전호진(admin@)과 김정나(admin2@)만 사용
+  const MESSAGE_ADMIN_EMAILS = ['admin@songrim.church', 'admin2@songrim.church'];
+  const isAdminRole = userProfile?.role === 'admin';
+
   const value = {
     currentUser,
     userProfile,
     login,
     logout,
-    isAdmin: userProfile?.role === 'admin',
+    isAdmin: isAdminRole,
+    canManageMessages: !isAdminRole || MESSAGE_ADMIN_EMAILS.includes(currentUser?.email || ''),
     isTeacher: userProfile?.role === 'teacher',
     canRegisterStudents: userProfile?.role === 'admin' || !!userProfile?.canRegisterStudents,
     isLimited: !!userProfile?.limitedAccess,

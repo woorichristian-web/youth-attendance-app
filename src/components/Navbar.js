@@ -16,7 +16,7 @@ const ICONS = {
 };
 
 export default function Navbar() {
-  const { currentUser, userProfile, logout, isAdmin, isLimited, isTeacher } = useAuth();
+  const { currentUser, userProfile, logout, isAdmin, isLimited, isTeacher, canManageMessages } = useAuth();
   // 관리자는 민트/틸, 나머지는 오션블루
   const A = isAdmin
     ? { active: 'bg-teal-600 text-white shadow-sm', hover: 'hover:bg-teal-50', chip: 'bg-teal-100 text-teal-700', btn: 'bg-teal-600 hover:bg-teal-700' }
@@ -58,7 +58,8 @@ export default function Navbar() {
         { to: '/admin-home?m=students', label: '학생' },
         { to: '/admin-home?m=teachers', label: '선생님' },
         { to: '/admin-home?m=admin_office', label: '목회행정' },
-        { to: '/announcements', label: '소통' },
+        // 소통(메시지)은 담당 관리자(전호진·김정나)에게만 노출
+        ...(canManageMessages ? [{ to: '/announcements', label: '소통' }] : []),
       ]
     : isTeacher
     ? [

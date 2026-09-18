@@ -130,7 +130,7 @@ const emptyForm = () => ({
 });
 
 export default function AnnouncementsPage() {
-  const { isAdmin, isTeacher, userProfile, currentUser } = useAuth();
+  const { isAdmin, isTeacher, userProfile, currentUser, canManageMessages } = useAuth();
   // 메시지 전송·수정·삭제는 관리자(전호진·강현미·전성배·김정나) 모두 가능
   const canSend = isAdmin;
   const [teacherTab, setTeacherTab] = useState('received'); // 교사 화면: received | sent
@@ -242,6 +242,19 @@ export default function AnnouncementsPage() {
 
   const recurrenceLabel = (rec) =>
     RECURRENCE_OPTIONS.find((r) => r.value === rec)?.label || '';
+
+  // 관리자 중 메시지 담당자(전호진·김정나)가 아니면 접근 제한
+  if (isAdmin && !canManageMessages) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-10 admin-theme">
+        <div className="bg-white border border-stone-200 rounded-2xl text-center py-12 px-6">
+          <div className="text-4xl mb-3">🔒</div>
+          <p className="font-semibold text-stone-800">이 메뉴는 담당 관리자만 사용할 수 있습니다.</p>
+          <p className="text-sm text-stone-500 mt-1">선생님들의 메시지는 담당 관리자(목사님)가 확인하고 있어요.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`max-w-3xl mx-auto px-4 py-6 ${isAdmin ? 'admin-theme' : ''}`}>
