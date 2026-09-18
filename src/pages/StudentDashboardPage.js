@@ -200,12 +200,12 @@ export default function StudentDashboardPage({ embedded = false }) {
 
       {/* 🧑‍🏫 교사 명단 — 이름과 반/사역팀만 표시 (개인정보 미노출) */}
       {tab === 3 && (() => {
-        const groups = { '1부': [], '2부': [], '사역팀': [], '기타': [] };
+        // 1부/2부/사역팀만 표시 — 어디에도 속하지 않는 계정(기타)은 명단에서 제외
+        const groups = { '1부': [], '2부': [], '사역팀': [] };
         teachers.forEach((t) => {
           if (t.service === '1부') groups['1부'].push(t);
           else if (t.service === '2부') groups['2부'].push(t);
           else if (['찬양팀', '예배팀', '행정팀'].includes(t.ministryMain)) groups['사역팀'].push(t);
-          else groups['기타'].push(t);
         });
         Object.keys(groups).forEach((k) =>
           groups[k].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'))
@@ -219,7 +219,7 @@ export default function StudentDashboardPage({ embedded = false }) {
           if (t.ministrySub) return t.ministrySub;
           return '-';
         };
-        const order = ['1부', '2부', '사역팀', '기타'];
+        const order = ['1부', '2부', '사역팀'];
         return (
           <div className="space-y-4">
             {order.map((g) => {
