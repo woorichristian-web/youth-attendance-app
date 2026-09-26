@@ -566,14 +566,22 @@ export default function ExcelExport({ classes, students }) {
       .map((d) => ({ id: d.id, ...d.data() }))
       .filter((u) => u.email && u.email !== 'skygarden79@gmail.com');
 
-    // 이메일별 기본 비번
-    // st{번호}@ 계정은 "songrim{번호}" (예: st100 → songrim100)
-    // 그 외 특수 계정은 지정값
-    const passwordFor = (email) => {
-      if (email === 'admin@songrim.church') return 'hojin1234!';
-      const m = /^st(\d+)@songrim\.church$/.exec(email);
-      if (m) return 'songrim' + m[1];
-      return 'songrim1234!';
+    // 비밀번호 규칙:
+    // - 관리자 4계정(전호진·김정나·전성배·강현미)은 공통 비밀번호(별도 안내)
+    //   ※ 공개 저장소이므로 실제 값은 코드에 넣지 않는다
+    // - 그 외(김정나1·전성배1 포함 모든 선생님 계정)는 각자 전화번호 뒤 8자리
+    // - 전화번호가 등록되지 않은 계정은 안내 문구 표기
+    const ADMIN_PW_EMAILS = [
+      'admin@songrim.church', // 전호진
+      'admin2@songrim.church', // 김정나
+      'leader2@songrim.church', // 전성배
+      'leader1@songrim.church', // 강현미
+    ];
+    const passwordFor = (u) => {
+      if (ADMIN_PW_EMAILS.includes(u.email)) return '(관리자 공통 비밀번호)';
+      const digits = String(u.phone || '').replace(/\D/g, '');
+      if (digits.length >= 8) return digits.slice(-8);
+      return '(전화번호 미등록)';
     };
 
     // 아이디배정: 어떤 역할·선생님이 배정됐는지
@@ -598,7 +606,7 @@ export default function ExcelExport({ classes, students }) {
 
     const rows = list.map((u) => ({
       로그인이메일: u.email,
-      비밀번호: passwordFor(u.email),
+      비밀번호: passwordFor(u),
       아이디배정: assignmentFor(u),
     }));
 
