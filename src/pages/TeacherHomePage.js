@@ -8,6 +8,7 @@ import PastAttendance from '../components/dashboard/PastAttendance';
 import StudentDashboardPage from './StudentDashboardPage';
 import { getThisSunday, formatDateKo, isValidSunday } from '../utils/dateUtils';
 import { isRegistered } from '../utils/statusUtils';
+import { calcConsecutiveAbsences } from '../utils/absenceUtils';
 
 // 두 날짜 사이 일요일 개수
 function countSundaysBetween(start, end) {
@@ -135,6 +136,9 @@ function AttendSection({ classId, service, teacherName }) {
 
   return (
     <div>
+      {/* 우리 반 3회 이상 연속 결석자 */}
+      <MyClassConsecutiveAbsent classId={classId} />
+
       <div className="flex gap-1 mb-3 bg-white/60 rounded-xl p-1 w-fit max-w-full overflow-x-auto">
         {ATTEND_SUB_TABS.map((t) => (
           <button
@@ -178,6 +182,55 @@ function AttendSection({ classId, service, teacherName }) {
 
       {sub === 'summary' && <ClassAttendanceSummary classId={classId} />}
       {sub === 'weekly' && <WeeklyAttendanceSection classId={classId} />}
+    </div>
+  );
+}
+
+// 우리 반 3회 이상 연속 결석자 배너 — 교사 홈 대시보드 상단
+function MyClassConsecutiveAbsent({ classId }) {
+  const [students, setStudents] = useState([]);
+  const [attendance, setAttendance] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!classId) return;
+    let s = false, a = false;
+    const done = () => { if (s && a) setLoading(false); };
+    const u1 = onSnapshot(collection(db, 'students'), (snap) => {
+      setStudents(snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((st) => st.classId === classId));
+      s = true; done();
+    });
+    const u2 = onSnapshot(collection(db, 'attendance'), (snap) => {
+      setAttendance(snap.docs.map((d) => d.data()).filter((a2) => a2.classId === classId));
+      a = true; done();
+    });
+    return () => { u1(); u2(); };
+  }, [classId]);
+
+  if (loading) return null;
+
+  const absentees = students
+    .filter(isRegistered)
+    .map((st) => ({ ...st, streak: calcConsecutiveAbsences(st, attendance) }))
+    .filter((st) => st.streak >= 3)
+    .sort((a, b) => b.streak - a.streak || (a.name || '').localeCompare(b.name || '', 'ko'));
+
+  if (absentees.length === 0) return null;
+
+  return (
+    <div className="card bg-rose-50 border-rose-200 mb-3">
+      <div className="text-sm font-semibold text-rose-700 mb-1.5">
+        🚨 3회 이상 연속 결석 · {absentees.length}명
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {absentees.map((st) => (
+          <span key={st.id} className="text-xs bg-white border border-rose-200 text-ink rounded-md px-2.5 py-1">
+            <span className="font-semibold">{st.name}</span>
+            <span className="text-rose-500 font-medium"> {st.streak}주 연속</span>
+          </span>
+        ))}
+      </div>
+      <p className="text-[11px] text-rose-400 mt-1.5">심방이나 연락이 필요할 수 있어요.</p>
     </div>
   );
 }

@@ -21,6 +21,7 @@ import FloatingQuickBar from '../components/admin/FloatingQuickBar';
 import { getSundaysInMonth, getThisSunday } from '../utils/dateUtils';
 import { filterExcludedSundays } from '../utils/excludedDates';
 import { hasEcclesia, normalizeSchool } from '../utils/schoolConfig';
+import { getConsecutiveAbsentees } from '../utils/absenceUtils';
 
 const TOP_MENUS = [
   { id: 'attendance_view', label: '출석' },
@@ -317,6 +318,11 @@ function AttendanceViewMenu() {
 
   return (
     <div>
+      {/* 3회 이상 연속 결석자 — 부서별 상단 고정 표기 */}
+      {!loading && (
+        <ConsecutiveAbsentBanner students={students} classes={classes} attendance={attendance} />
+      )}
+
       <div className="flex gap-1 mb-4 bg-white/60 rounded-xl p-1 w-fit overflow-x-auto max-w-full">
         {ATTENDANCE_SUBS.map((t) => (
           <button
@@ -353,7 +359,55 @@ function AttendanceViewMenu() {
 }
 
 // 부서별 현황 — 1부/2부 출석 주요 지표 대시보드
+// ── 3회 이상 연속 결석자 배너 (부서별 그룹) ──
+function ConsecutiveAbsentBanner({ students, classes, attendance }) {
+  const absentees = useMemo(
+    () => getConsecutiveAbsentees(students, classes, attendance, 3),
+    [students, classes, attendance]
+  );
+
+  return (
+    <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-4 mb-4">
+      <div className="flex items-center gap-2 font-semibold text-stone-900 mb-2 text-sm">
+        <IconAlert className="w-4 h-4 text-rose-500" />
+        3회 이상 연속 결석 · <span className="text-rose-600">{absentees.length}명</span>
+      </div>
+      {absentees.length === 0 ? (
+        <p className="text-xs text-stone-500">3회 이상 연속 결석한 학생이 없습니다. 🙌</p>
+      ) : (
+        <div className="space-y-2">
+          {['1부', '2부', '기타'].map((svc) => {
+            const list = svc === '기타'
+              ? absentees.filter((x) => x.service !== '1부' && x.service !== '2부')
+              : absentees.filter((x) => x.service === svc);
+            if (list.length === 0) return null;
+            return (
+              <div key={svc}>
+                <div className="text-xs font-semibold text-stone-600 mb-1">{svc} · {list.length}명</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {list.map((x) => (
+                    <span
+                      key={x.id}
+                      className="text-xs bg-white border border-rose-200 text-stone-800 rounded-md px-2.5 py-1"
+                    >
+                      {x.teacherName && <span className="text-stone-500">{x.teacherName} · </span>}
+                      <span className="font-semibold">{x.name}</span>
+                      <span className="text-rose-500 font-medium"> {x.streak}주 연속</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ServiceAttendanceDashboard({ students, attendance, classes }) {
+  // 1부/2부 탭 — 두 부서를 세로로 쌓지 않고 탭으로 전환해 스크롤 최소화
+  const [svcTab, setSvcTab] = useState('1부');
   const data = useMemo(() => {
     const thisSunStr = getThisSunday();
     return ['1부', '2부'].map((svc) => {
@@ -422,9 +476,25 @@ function ServiceAttendanceDashboard({ students, attendance, classes }) {
 
   return (
     <div>
-      <div className="text-xs text-stone-500 mb-3 ml-1">{data[0]?.thisSunStr} 주일 기준</div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {data.map((d) => (
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        {/* 1부/2부 전환 탭 */}
+        <div className="flex gap-1 bg-white/60 rounded-xl p-1 w-fit">
+          {['1부', '2부'].map((svc) => (
+            <button
+              key={svc}
+              onClick={() => setSvcTab(svc)}
+              className={`px-5 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                svcTab === svc ? 'bg-white text-teal-700 shadow-sm' : 'text-stone-500 hover:text-stone-800'
+              }`}
+            >
+              {svc}
+            </button>
+          ))}
+        </div>
+        <div className="text-xs text-stone-500 mr-1">{data[0]?.thisSunStr} 주일 기준</div>
+      </div>
+      <div className="grid grid-cols-1 gap-4">
+        {data.filter((d) => d.svc === svcTab).map((d) => (
           <div key={d.svc} className="bg-white border border-stone-200 rounded-xl shadow-sm p-5">
             {/* 헤더 */}
             <div className="flex items-center justify-between mb-4">
