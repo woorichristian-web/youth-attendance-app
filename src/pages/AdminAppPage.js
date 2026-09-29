@@ -318,11 +318,6 @@ function AttendanceViewMenu() {
 
   return (
     <div>
-      {/* 3회 이상 연속 결석자 — 부서별 상단 고정 표기 */}
-      {!loading && (
-        <ConsecutiveAbsentBanner students={students} classes={classes} attendance={attendance} />
-      )}
-
       <div className="flex gap-1 mb-4 bg-white/60 rounded-xl p-1 w-fit overflow-x-auto max-w-full">
         {ATTENDANCE_SUBS.map((t) => (
           <button
@@ -359,52 +354,6 @@ function AttendanceViewMenu() {
 }
 
 // 부서별 현황 — 1부/2부 출석 주요 지표 대시보드
-// ── 3회 이상 연속 결석자 배너 (부서별 그룹) ──
-function ConsecutiveAbsentBanner({ students, classes, attendance }) {
-  const absentees = useMemo(
-    () => getConsecutiveAbsentees(students, classes, attendance, 3),
-    [students, classes, attendance]
-  );
-
-  return (
-    <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-4 mb-4">
-      <div className="flex items-center gap-2 font-semibold text-stone-900 mb-2 text-sm">
-        <IconAlert className="w-4 h-4 text-rose-500" />
-        3회 이상 연속 결석 · <span className="text-rose-600">{absentees.length}명</span>
-      </div>
-      {absentees.length === 0 ? (
-        <p className="text-xs text-stone-500">3회 이상 연속 결석한 학생이 없습니다. 🙌</p>
-      ) : (
-        <div className="space-y-2">
-          {['1부', '2부', '기타'].map((svc) => {
-            const list = svc === '기타'
-              ? absentees.filter((x) => x.service !== '1부' && x.service !== '2부')
-              : absentees.filter((x) => x.service === svc);
-            if (list.length === 0) return null;
-            return (
-              <div key={svc}>
-                <div className="text-xs font-semibold text-stone-600 mb-1">{svc} · {list.length}명</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {list.map((x) => (
-                    <span
-                      key={x.id}
-                      className="text-xs bg-white border border-rose-200 text-stone-800 rounded-md px-2.5 py-1"
-                    >
-                      {x.teacherName && <span className="text-stone-500">{x.teacherName} · </span>}
-                      <span className="font-semibold">{x.name}</span>
-                      <span className="text-rose-500 font-medium"> {x.streak}주 연속</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function ServiceAttendanceDashboard({ students, attendance, classes }) {
   // 1부/2부 탭 — 두 부서를 세로로 쌓지 않고 탭으로 전환해 스크롤 최소화
   const [svcTab, setSvcTab] = useState('1부');
@@ -467,6 +416,21 @@ function ServiceAttendanceDashboard({ students, attendance, classes }) {
       };
     });
   }, [students, attendance, classes]);
+
+  // 3회 이상 연속 결석자 — 부서별 · 같은 반(반사)끼리 묶음
+  const absenteeGroupsBySvc = useMemo(() => {
+    const all = getConsecutiveAbsentees(students, classes, attendance, 3);
+    const bySvc = {};
+    all.forEach((x) => {
+      const svc = x.service === '1부' || x.service === '2부' ? x.service : '기타';
+      if (!bySvc[svc]) bySvc[svc] = [];
+      const key = x.teacherName || '반 미배정';
+      let grp = bySvc[svc].find((g) => g.teacher === key);
+      if (!grp) { grp = { teacher: key, items: [] }; bySvc[svc].push(grp); }
+      grp.items.push(x);
+    });
+    return bySvc;
+  }, [students, classes, attendance]);
 
   const rateColor = (rate) =>
     rate == null ? 'text-stone-400'
@@ -558,6 +522,42 @@ function ServiceAttendanceDashboard({ students, attendance, classes }) {
             {d.missingClasses.length === 0 && (
               <div className="text-[11px] text-emerald-600 font-medium">✓ 이번 주 모든 반 제출 완료</div>
             )}
+
+            {/* 3회 이상 연속 결석자 — 카드 맨 하단, 같은 반끼리 묶음 */}
+            <div className="border-t border-stone-100 pt-3 mt-3">
+              {(() => {
+                const groups = absenteeGroupsBySvc[d.svc] || [];
+                const total = groups.reduce((n, g) => n + g.items.length, 0);
+                return (
+                  <>
+                    <div className="text-[11px] font-semibold text-rose-600 mb-1.5">
+                      🚨 3회 이상 연속 결석 · {total}명
+                    </div>
+                    {total === 0 ? (
+                      <p className="text-[11px] text-stone-400">3회 이상 연속 결석한 학생이 없습니다.</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {groups.map((g) => (
+                          <div key={g.teacher} className="flex items-start gap-2 text-xs">
+                            <span className="flex-shrink-0 bg-stone-100 text-stone-600 rounded-md px-2 py-0.5 font-medium">
+                              {g.teacher}
+                            </span>
+                            <div className="flex flex-wrap gap-1.5 pt-0.5">
+                              {g.items.map((x) => (
+                                <span key={x.id} className="bg-rose-50 border border-rose-100 text-stone-800 rounded-md px-2 py-0.5">
+                                  <span className="font-semibold">{x.name}</span>
+                                  <span className="text-rose-500"> {x.streak}주</span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
           </div>
         ))}
       </div>
