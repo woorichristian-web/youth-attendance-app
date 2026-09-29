@@ -600,14 +600,11 @@ function ServiceAttendanceDashboard({ students, attendance, classes }) {
                   <div key={c.classId} className="border border-stone-100 rounded-lg p-2.5">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-semibold text-stone-800">{c.teacherName || '반 미배정'} 선생님반</span>
-                      {c.submitted ? (
-                        <span className="text-[11px]">
-                          <span className="text-emerald-600 font-medium">출석 {c.present}</span>
-                          <span className="text-stone-300"> · </span>
-                          <span className="text-rose-500 font-medium">결석 {c.absent}</span>
-                        </span>
-                      ) : (
+                      {!c.submitted && (
                         <span className="text-[11px] text-amber-600 font-medium">미제출</span>
+                      )}
+                      {c.submitted && c.absentNames.length === 0 && (
+                        <span className="text-[11px] text-emerald-600 font-medium">결석 없음</span>
                       )}
                     </div>
                     {c.submitted && c.absentNames.length > 0 && (
@@ -616,13 +613,8 @@ function ServiceAttendanceDashboard({ students, attendance, classes }) {
                       </div>
                     )}
                     {c.submitted && c.absentReason && (
-                      <div className="text-[11px] text-stone-700 bg-rose-50/60 rounded-md px-2 py-1 mb-1">
+                      <div className="text-[11px] text-stone-700 bg-rose-50/60 rounded-md px-2 py-1">
                         <span className="font-medium text-rose-600">결석사유</span> · {c.absentReason}
-                      </div>
-                    )}
-                    {c.submitted && c.visitPrayer && (
-                      <div className="text-[11px] text-stone-700 bg-teal-50/60 rounded-md px-2 py-1">
-                        <span className="font-medium text-teal-700">심방/기도</span> · {c.visitPrayer}
                       </div>
                     )}
                   </div>

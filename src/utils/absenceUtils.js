@@ -5,15 +5,25 @@ import { isRegistered } from './statusUtils';
 
 export function calcConsecutiveAbsences(student, attendanceList) {
   const allIds = new Set([student.id, ...(student.alternateIds || [])]);
+  const classId = student.classId;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  // 학생의 반 기준, 오늘까지 제출된 출석 날짜를 최신순으로
   const recs = attendanceList
     .filter((rec) =>
       rec.submitted !== false &&
-      rec.records?.some((r) => allIds.has(r.studentId) && typeof r.present === 'boolean')
+      rec.date && rec.date <= todayStr &&
+      (classId ? rec.classId === classId : true)
     )
     .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+  // 가장 최근 주일부터 연속으로 결석한 횟수 (현 시점 앵커링)
+  // present === true 또는 해당 주 기록 없음 → 연속 끊김
   let streak = 0;
+  const seenDates = new Set();
   for (const rec of recs) {
-    const r = rec.records.find((rr) => allIds.has(rr.studentId) && typeof rr.present === 'boolean');
+    if (seenDates.has(rec.date)) continue;
+    seenDates.add(rec.date);
+    const r = rec.records?.find((rr) => allIds.has(rr.studentId) && typeof rr.present === 'boolean');
     if (r && r.present === false) streak += 1;
     else break;
   }
