@@ -136,9 +136,6 @@ function AttendSection({ classId, service, teacherName }) {
 
   return (
     <div>
-      {/* 우리 반 3회 이상 연속 결석자 */}
-      <MyClassConsecutiveAbsent classId={classId} />
-
       <div className="flex gap-1 mb-3 bg-white/60 rounded-xl p-1 w-fit max-w-full overflow-x-auto">
         {ATTEND_SUB_TABS.map((t) => (
           <button
@@ -182,55 +179,6 @@ function AttendSection({ classId, service, teacherName }) {
 
       {sub === 'summary' && <ClassAttendanceSummary classId={classId} />}
       {sub === 'weekly' && <WeeklyAttendanceSection classId={classId} />}
-    </div>
-  );
-}
-
-// 우리 반 3회 이상 연속 결석자 배너 — 교사 홈 대시보드 상단
-function MyClassConsecutiveAbsent({ classId }) {
-  const [students, setStudents] = useState([]);
-  const [attendance, setAttendance] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!classId) return;
-    let s = false, a = false;
-    const done = () => { if (s && a) setLoading(false); };
-    const u1 = onSnapshot(collection(db, 'students'), (snap) => {
-      setStudents(snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((st) => st.classId === classId));
-      s = true; done();
-    });
-    const u2 = onSnapshot(collection(db, 'attendance'), (snap) => {
-      setAttendance(snap.docs.map((d) => d.data()).filter((a2) => a2.classId === classId));
-      a = true; done();
-    });
-    return () => { u1(); u2(); };
-  }, [classId]);
-
-  if (loading) return null;
-
-  const absentees = students
-    .filter(isRegistered)
-    .map((st) => ({ ...st, streak: calcConsecutiveAbsences(st, attendance) }))
-    .filter((st) => st.streak >= 3)
-    .sort((a, b) => b.streak - a.streak || (a.name || '').localeCompare(b.name || '', 'ko'));
-
-  if (absentees.length === 0) return null;
-
-  return (
-    <div className="card bg-rose-50 border-rose-200 mb-3">
-      <div className="text-sm font-semibold text-rose-700 mb-1.5">
-        🚨 3회 이상 연속 결석 · {absentees.length}명
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {absentees.map((st) => (
-          <span key={st.id} className="text-xs bg-white border border-rose-200 text-ink rounded-md px-2.5 py-1">
-            <span className="font-semibold">{st.name}</span>
-            <span className="text-rose-500 font-medium"> {st.streak}주 연속</span>
-          </span>
-        ))}
-      </div>
-      <p className="text-[11px] text-rose-400 mt-1.5">심방이나 연락이 필요할 수 있어요.</p>
     </div>
   );
 }
@@ -346,9 +294,79 @@ function ClassAttendanceSummary({ classId }) {
     return (b.rate ?? -1) - (a.rate ?? -1) || (a.name || '').localeCompare(b.name || '', 'ko');
   });
 
+  // ── 우리 반 통계 (전체 요약) ──
+  const totalPresent = stats.reduce((n, s) => n + s.present, 0);
+  const totalAbsent = stats.reduce((n, s) => n + s.absent, 0);
+  const classRate = totalPresent + totalAbsent > 0
+    ? Math.round((totalPresent / (totalPresent + totalAbsent)) * 100)
+    : null;
+  const longAbsentCount = stats.filter((s) => s.isLongAbsent).length;
+  // 최근 제출 주일 출석 현황
+  const submittedRecs = attendance.filter((r) => r.submitted !== false);
+  const lastDate = submittedRecs.map((r) => r.date).sort().pop() || null;
+  let lastP = 0, lastA = 0;
+  submittedRecs.filter((r) => r.date === lastDate).forEach((rec) => {
+    rec.records?.forEach((r) => {
+      if (r.present === true) lastP++;
+      else if (r.present === false) lastA++;
+    });
+  });
+
+  // ── 3회 이상 연속 결석생 ──
+  const consecAbsentees = students
+    .map((st) => ({ ...st, streak: calcConsecutiveAbsences(st, attendance) }))
+    .filter((st) => st.streak >= 3)
+    .sort((a, b) => b.streak - a.streak || (a.name || '').localeCompare(b.name || '', 'ko'));
+
+  const StatTile = ({ label, value, tone = 'text-ink' }) => (
+    <div className="bg-ocean-50/60 rounded-xl py-2.5 text-center">
+      <div className="text-[11px] text-ink-muted mb-0.5">{label}</div>
+      <div className={`text-lg font-bold ${tone}`}>{value}</div>
+    </div>
+  );
+
   return (
     <div>
-      <div className="text-sm text-ink-muted mb-2">우리 반 · {stats.length}명 · 최근 예배 기준 누적</div>
+      {/* ① 우리 반 통계 */}
+      <div className="card mb-3">
+        <div className="text-sm font-semibold text-ink mb-2">📊 우리 반 통계</div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          <StatTile label="반 인원" value={`${stats.length}명`} />
+          <StatTile label="누적 출석률" value={classRate == null ? '-' : `${classRate}%`} tone="text-ocean-600" />
+          <StatTile
+            label={lastDate ? `최근 주일 (${lastDate.slice(5).replace('-', '/')})` : '최근 주일'}
+            value={lastDate ? `${lastP}/${lastP + lastA}명 출석` : '기록 없음'}
+            tone="text-emerald-600"
+          />
+          <StatTile label="연속결석 (3주+)" value={`${consecAbsentees.length}명`} tone="text-rose-500" />
+          <StatTile label="장결자" value={`${longAbsentCount}명`} tone="text-red-500" />
+        </div>
+      </div>
+
+      {/* ② 3회 이상 연속 결석생 */}
+      <div className={`card mb-3 ${consecAbsentees.length > 0 ? 'bg-rose-50 border-rose-200' : ''}`}>
+        <div className={`text-sm font-semibold mb-1.5 ${consecAbsentees.length > 0 ? 'text-rose-700' : 'text-ink'}`}>
+          🚨 3회 이상 연속 결석 · {consecAbsentees.length}명
+        </div>
+        {consecAbsentees.length === 0 ? (
+          <p className="text-xs text-ink-muted">3회 이상 연속 결석한 학생이 없습니다. 🙌</p>
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-1.5">
+              {consecAbsentees.map((st) => (
+                <span key={st.id} className="text-xs bg-white border border-rose-200 text-ink rounded-md px-2.5 py-1">
+                  <span className="font-semibold">{st.name}</span>
+                  <span className="text-rose-500 font-medium"> {st.streak}주 연속</span>
+                </span>
+              ))}
+            </div>
+            <p className="text-[11px] text-rose-400 mt-1.5">심방이나 연락이 필요할 수 있어요.</p>
+          </>
+        )}
+      </div>
+
+      {/* ③ 개별 연간 출석율 */}
+      <div className="text-sm text-ink-muted mb-2">개별 연간 출석율 · 우리 반 {stats.length}명 · 최근 예배 기준 누적</div>
       <div className="space-y-2">
         {stats.map((s) => {
           const open = expandedId === s.id;

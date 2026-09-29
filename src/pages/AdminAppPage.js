@@ -478,11 +478,16 @@ function ServiceAttendanceDashboard({ students, attendance, classes }) {
             </div>
 
             {/* 이번 주 지표 */}
-            <div className="grid grid-cols-4 gap-2 mb-4">
+            <div className="grid grid-cols-5 gap-2 mb-4">
               <ServiceStat label="출석" value={d.present} tone="text-emerald-600" />
               <ServiceStat label="결석" value={d.absent} tone="text-rose-500" />
               <ServiceStat label="미체크" value={d.missing} tone="text-amber-600" />
               <ServiceStat label="제출" value={`${d.submitted}/${d.classCount}`} tone="text-stone-800" />
+              <ServiceStat
+                label="연속결석"
+                value={(absenteeGroupsBySvc[d.svc] || []).reduce((n, g) => n + g.items.length, 0)}
+                tone="text-rose-600"
+              />
             </div>
 
             {/* 누적 출석률 */}
