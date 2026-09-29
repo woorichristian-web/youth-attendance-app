@@ -409,10 +409,36 @@ function ServiceAttendanceDashboard({ students, attendance, classes }) {
           present: byDate[d].p,
         }));
 
+      // 반별 상세 (이번 주) — 출석/결석 명단 + 결석사유 · 심방/기도
+      const thisWeekByClass = {};
+      thisWeek.forEach((rec) => { thisWeekByClass[rec.classId] = rec; });
+      const classDetails = svcClasses
+        .map((c) => {
+          const rec = thisWeekByClass[c.id];
+          if (!rec) {
+            return { classId: c.id, teacherName: c.teacherName || '', submitted: false };
+          }
+          const presentNames = (rec.records || []).filter((r) => r.present === true).map((r) => r.studentName);
+          const absentNames = (rec.records || []).filter((r) => r.present === false).map((r) => r.studentName);
+          return {
+            classId: c.id,
+            teacherName: c.teacherName || rec.teacherName || '',
+            submitted: true,
+            present: presentNames.length,
+            absent: absentNames.length,
+            presentNames,
+            absentNames,
+            absentReason: rec.absentReason || '',
+            visitPrayer: rec.visitPrayer || '',
+          };
+        })
+        .sort((a, b) => (a.teacherName || '').localeCompare(b.teacherName || '', 'ko'));
+
       return {
         svc, roster: roster.length, classCount: svcClasses.length,
         present, absent, missing, rate, overallRate,
         submitted: submittedIds.size, missingClasses, trend, thisSunStr,
+        classDetails,
       };
     });
   }, [students, attendance, classes]);
@@ -562,6 +588,49 @@ function ServiceAttendanceDashboard({ students, attendance, classes }) {
                   </>
                 );
               })()}
+            </div>
+
+            {/* 반별 출석 상세 — 이번 주 출석/결석 명단 + 결석사유 · 심방/기도 */}
+            <div className="border-t border-stone-100 pt-3 mt-3">
+              <div className="text-[11px] font-semibold text-stone-600 mb-2">
+                📋 반별 출석 상세 · {d.thisSunStr.slice(5).replace('-', '/')} 주일
+              </div>
+              <div className="space-y-2">
+                {d.classDetails.map((c) => (
+                  <div key={c.classId} className="border border-stone-100 rounded-lg p-2.5">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-semibold text-stone-800">{c.teacherName || '반 미배정'} 선생님반</span>
+                      {c.submitted ? (
+                        <span className="text-[11px]">
+                          <span className="text-emerald-600 font-medium">출석 {c.present}</span>
+                          <span className="text-stone-300"> · </span>
+                          <span className="text-rose-500 font-medium">결석 {c.absent}</span>
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-amber-600 font-medium">미제출</span>
+                      )}
+                    </div>
+                    {c.submitted && c.absentNames.length > 0 && (
+                      <div className="text-[11px] text-stone-600 mb-1">
+                        <span className="text-rose-500">❌ 결석:</span> {c.absentNames.join(', ')}
+                      </div>
+                    )}
+                    {c.submitted && c.absentReason && (
+                      <div className="text-[11px] text-stone-700 bg-rose-50/60 rounded-md px-2 py-1 mb-1">
+                        <span className="font-medium text-rose-600">결석사유</span> · {c.absentReason}
+                      </div>
+                    )}
+                    {c.submitted && c.visitPrayer && (
+                      <div className="text-[11px] text-stone-700 bg-teal-50/60 rounded-md px-2 py-1">
+                        <span className="font-medium text-teal-700">심방/기도</span> · {c.visitPrayer}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {d.classDetails.length === 0 && (
+                  <p className="text-[11px] text-stone-400">등록된 반이 없습니다.</p>
+                )}
+              </div>
             </div>
           </div>
         ))}

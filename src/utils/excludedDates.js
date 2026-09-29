@@ -5,7 +5,6 @@ export const EXCLUDED_DATES_INFO = {
   '2026-02-15': '설연휴',
   '2026-07-26': '여름수련회',
   '2026-08-16': '교사방학',
-  '2026-09-27': '추석',
 };
 
 export const EXCLUDED_DATES = Object.keys(EXCLUDED_DATES_INFO);
