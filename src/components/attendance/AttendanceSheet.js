@@ -133,15 +133,15 @@ export default function AttendanceSheet({ date, service, teacher, classId }) {
         submittedBy: currentUser.uid,
       });
 
-      // 결석자 사유 또는 심방/기도 입력 시 관리자 알림 생성
-      if (ar || vp) {
+      // 심방/기도 입력 시에만 관리자 알림 생성 — 결석사유는 출석부에만 기록
+      if (vp) {
         await addDoc(collection(db, 'notifications'), {
           type: 'notes',
           teacherName: teacher.name,
           service,
           classId,
           date,
-          notes: [ar && `[결석사유] ${ar}`, vp && `[심방/기도] ${vp}`].filter(Boolean).join('\n'),
+          notes: `[심방/기도] ${vp}`,
           read: false,
           createdAt: serverTimestamp(),
         });

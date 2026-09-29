@@ -23,7 +23,24 @@ export default function NotificationBell() {
       limit(30),
     );
     const unsub = onSnapshot(q, (snap) => {
-      setNotifications(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setNotifications(
+        snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          // 결석사유는 출석부에만 기록 — 알림함에는 심방/기도 요청만 표시
+          // (예전 알림에 결석사유가 섞여 있으면 심방/기도 부분만 남기고,
+          //  결석사유만 있는 알림은 숨김)
+          .map((n) => {
+            const notes = n.notes || '';
+            const idx = notes.indexOf('[심방/기도]');
+            if (idx > 0) return { ...n, notes: notes.slice(idx) };
+            return n;
+          })
+          .filter((n) => {
+            const notes = n.notes || '';
+            if (notes.includes('[결석사유]') && !notes.includes('[심방/기도]')) return false;
+            return true;
+          })
+      );
     });
     return unsub;
   }, []);
