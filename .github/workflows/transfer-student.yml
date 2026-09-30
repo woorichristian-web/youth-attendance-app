@@ -1,0 +1,52 @@
+name: Transfer Student
+
+on:
+  workflow_dispatch:
+    inputs:
+      student_name:
+        description: "이동할 학생 이름 (예: 박서령)"
+        required: true
+        type: string
+      to_teacher:
+        description: "대상 반 담임 이름 (예: 이명희)"
+        required: true
+        type: string
+      to_service:
+        description: "대상 반 부서 (예: 2부)"
+        required: true
+        default: "2부"
+        type: choice
+        options:
+          - "1부"
+          - "2부"
+      weeks_present:
+        description: "최근 며칠 주일을 출석으로 표기할지 (0이면 미적용)"
+        required: false
+        default: "4"
+        type: string
+      mode:
+        description: "dry-run(미리보기) 또는 apply(실제 적용)"
+        required: true
+        default: "dry-run"
+        type: choice
+        options:
+          - dry-run
+          - apply
+
+jobs:
+  transfer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run student transfer script
+        run: node scripts/transfer-student.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          STUDENT_NAME: ${{ inputs.student_name }}
+          TO_TEACHER: ${{ inputs.to_teacher }}
+          TO_SERVICE: ${{ inputs.to_service }}
+          WEEKS_PRESENT: ${{ inputs.weeks_present }}
+          MODE: ${{ inputs.mode }}
