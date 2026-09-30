@@ -132,8 +132,20 @@ function lastNSundays(n) {
 
 // ── 1) 학생 찾기 ──
 const students = await listDocs('students');
-const matches = students.filter((doc) => sv(doc.fields?.name) === STUDENT_NAME);
-if (matches.length === 0) { console.error(`학생 '${STUDENT_NAME}' 을(를) 찾을 수 없습니다.`); process.exit(1); }
+console.log(`students 컬렉션 문서 수: ${students.length}`);
+const matches = students.filter((doc) => (sv(doc.fields?.name) || '').trim() === STUDENT_NAME);
+if (matches.length === 0) {
+  console.error(`학생 '${STUDENT_NAME}' 을(를) 찾을 수 없습니다.`);
+  const head = STUDENT_NAME.slice(0, 2);
+  const near = students.filter((doc) => (sv(doc.fields?.name) || '').includes(head));
+  if (near.length) {
+    console.error(`유사 이름 후보(${near.length}):`);
+    near.forEach((m) => console.error(`  '${sv(m.fields?.name)}' id=${idOf(m)} service=${sv(m.fields?.service)} classId=${sv(m.fields?.classId)}`));
+  } else {
+    console.error('유사 이름 후보 없음. 이름 표기를 확인하세요.');
+  }
+  process.exit(1);
+}
 if (matches.length > 1) {
   console.error(`이름이 같은 학생이 ${matches.length}명 있습니다. 수동 확인이 필요합니다:`);
   matches.forEach((m) => console.error(`  id=${idOf(m)} service=${sv(m.fields?.service)} classId=${sv(m.fields?.classId)}`));
