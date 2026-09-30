@@ -48,14 +48,31 @@ const P = sa.project_id;
 const BASE = `https://firestore.googleapis.com/v1/projects/${P}/databases/(default)/documents`;
 
 // ── Firestore REST 헬퍼 ──
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// 429/503 등 일시적 오류 시 지수 백오프 재시도
+async function fetchRetry(url, opts = {}, label = '요청') {
+  const delays = [2000, 5000, 10000, 20000];
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(url, opts);
+    if (res.ok) return res;
+    if ((res.status === 429 || res.status === 503) && attempt < delays.length) {
+      const body = await res.text();
+      console.log(`  ⏳ ${label} ${res.status} — ${delays[attempt] / 1000}s 후 재시도 (${attempt + 1}/${delays.length})`);
+      if (attempt === 0) console.log(`     ${body.slice(0, 160)}`);
+      await sleep(delays[attempt]);
+      continue;
+    }
+    const errBody = await res.text();
+    throw new Error(`${label} 실패(${res.status}): ${errBody.slice(0, 300)}`);
+  }
+}
 async function listDocs(coll) {
   let docs = [];
   let pt;
   do {
     const url = `${BASE}/${coll}?pageSize=300${pt ? `&pageToken=${encodeURIComponent(pt)}` : ''}`;
-    const res = await fetch(url, { headers: H });
+    const res = await fetchRetry(url, { headers: H }, `${coll} 조회`);
     const d = await res.json();
-    if (!res.ok) throw new Error(`${coll} 조회 실패(${res.status}): ${JSON.stringify(d)}`);
     docs = docs.concat(d.documents || []);
     pt = d.nextPageToken;
   } while (pt);
@@ -92,8 +109,7 @@ function toRecordsValue(records) {
 
 async function patchRecords(docName, records) {
   const url = `https://firestore.googleapis.com/v1/${docName}?updateMask.fieldPaths=records`;
-  const res = await fetch(url, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { records: toRecordsValue(records) } }) });
-  if (!res.ok) throw new Error(`records PATCH 실패(${res.status}): ${await res.text()}`);
+  await fetchRetry(url, { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { records: toRecordsValue(records) } }) }, 'records PATCH');
 }
 
 async function createAttendanceDoc(docId, { date, service, classId, teacherId, teacherName, records }) {
@@ -109,15 +125,13 @@ async function createAttendanceDoc(docId, { date, service, classId, teacherId, t
       submitted: { booleanValue: true },
     },
   };
-  const res = await fetch(url, { method: 'POST', headers: H, body: JSON.stringify(body) });
-  if (!res.ok) throw new Error(`attendance 생성 실패(${res.status}): ${await res.text()}`);
+  await fetchRetry(url, { method: 'POST', headers: H, body: JSON.stringify(body) }, 'attendance 생성');
 }
 
 async function patchStudentClass(sid, classId, service) {
   const url = `${BASE}/students/${sid}?updateMask.fieldPaths=classId&updateMask.fieldPaths=service&updateMask.fieldPaths=active`;
   const body = { fields: { classId: { stringValue: classId }, service: { stringValue: service }, active: { booleanValue: true } } };
-  const res = await fetch(url, { method: 'PATCH', headers: H, body: JSON.stringify(body) });
-  if (!res.ok) throw new Error(`학생 반 갱신 실패(${res.status}): ${await res.text()}`);
+  await fetchRetry(url, { method: 'PATCH', headers: H, body: JSON.stringify(body) }, '학생 반 갱신');
 }
 
 // ── 최근 N주 주일(일요일) 목록 (오늘 이하) ──
