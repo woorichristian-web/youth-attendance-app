@@ -1,0 +1,38 @@
+name: Deactivate Student
+
+on:
+  workflow_dispatch:
+    inputs:
+      student_name:
+        description: "대상 학생 이름 (예: 정서윤)"
+        required: true
+        type: string
+      inactive_from:
+        description: "비활성 시작일 YYYY-MM-DD (이후 결석 기록 제거). 비우면 출석 기록만 확인"
+        required: false
+        default: ""
+        type: string
+      mode:
+        description: "dry-run(미리보기) 또는 apply(실제 적용)"
+        required: true
+        default: "dry-run"
+        type: choice
+        options:
+          - dry-run
+          - apply
+
+jobs:
+  deactivate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run deactivate student script
+        run: node scripts/deactivate-student.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          STUDENT_NAME: ${{ inputs.student_name }}
+          INACTIVE_FROM: ${{ inputs.inactive_from }}
+          MODE: ${{ inputs.mode }}
