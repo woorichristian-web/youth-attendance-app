@@ -30,7 +30,7 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
 const now = Math.floor(Date.now() / 1000);
 const unsigned = `${b64({ alg: 'RS256', typ: 'JWT' })}.${b64({
   iss: sa.client_email,
-  scope: 'https://www.googleapis.com/auth/datastore',
+  scope: 'https://www.googleapis.com/auth/cloud-platform',
   aud: 'https://oauth2.googleapis.com/token',
   iat: now,
   exp: now + 3600,
@@ -53,7 +53,9 @@ async function listDocs(coll) {
   let pt;
   do {
     const url = `${BASE}/${coll}?pageSize=300${pt ? `&pageToken=${encodeURIComponent(pt)}` : ''}`;
-    const d = await (await fetch(url, { headers: H })).json();
+    const res = await fetch(url, { headers: H });
+    const d = await res.json();
+    if (!res.ok) throw new Error(`${coll} 조회 실패(${res.status}): ${JSON.stringify(d)}`);
     docs = docs.concat(d.documents || []);
     pt = d.nextPageToken;
   } while (pt);
