@@ -1,0 +1,32 @@
+name: Bulk Attendance
+
+on:
+  workflow_dispatch:
+    inputs:
+      payload:
+        description: 'JSON: {"service","date","classes":[{"teacher","absentees":[...]}]}'
+        required: true
+        type: string
+      mode:
+        description: "dry-run(미리보기) 또는 apply(실제 적용)"
+        required: true
+        default: "dry-run"
+        type: choice
+        options:
+          - dry-run
+          - apply
+
+jobs:
+  bulk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run bulk attendance script
+        run: node scripts/bulk-attendance.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PAYLOAD: ${{ inputs.payload }}
+          MODE: ${{ inputs.mode }}
