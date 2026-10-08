@@ -31,7 +31,7 @@ export default function TuksaePopup({ classId, service, teacherName }) {
       >
         <div className="flex items-start justify-between mb-1">
           <div>
-            <h3 className="text-lg font-bold text-ink">🌅 특별새벽기도회 출석</h3>
+            <h3 className="text-lg font-bold text-ink">🌅 특별새벽부흥회 출석</h3>
             <p className="text-xs text-ink-muted mt-0.5">{period?.label}</p>
           </div>
           <button onClick={close} className="text-ink-muted hover:text-ink text-xl leading-none">✕</button>
