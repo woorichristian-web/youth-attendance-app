@@ -22,6 +22,8 @@ import { getSundaysInMonth, getThisSunday } from '../utils/dateUtils';
 import { filterExcludedSundays } from '../utils/excludedDates';
 import { hasEcclesia, normalizeSchool } from '../utils/schoolConfig';
 import { getConsecutiveAbsentees } from '../utils/absenceUtils';
+import TuksaeAdminBoard from '../components/tuksae/TuksaeAdminBoard';
+import { activeDashboardYear } from '../utils/tuksaeConfig';
 
 const TOP_MENUS = [
   { id: 'attendance_view', label: '출석' },
@@ -278,6 +280,9 @@ function HomeMenu({ onNavigate }) {
         </div>
       )}
 
+      {/* 특새 출석부 — 특새 기간 중에만 대시보드에 노출 (기간 종료 다음날부터 숨김) */}
+      {activeDashboardYear() && <TuksaeAdminBoard showYearPicker={false} />}
+
     </div>
   );
 }
@@ -289,6 +294,7 @@ const ATTENDANCE_SUBS = [
   { id: 'by_service', label: '부서별 현황' },
   { id: 'weekly', label: '주일별 출석현황' },
   { id: 'analytics', label: '전체 출석 현황' },
+  { id: 'tuksae', label: '특새출석' },
 ];
 
 function AttendanceViewMenu() {
@@ -347,6 +353,7 @@ function AttendanceViewMenu() {
               <RegistrationStats />
             </div>
           )}
+          {sub === 'tuksae' && <TuksaeAdminBoard showYearPicker={true} />}
         </>
       )}
     </div>

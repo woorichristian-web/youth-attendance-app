@@ -9,6 +9,8 @@ import StudentDashboardPage from './StudentDashboardPage';
 import { getThisSunday, formatDateKo, isValidSunday } from '../utils/dateUtils';
 import { isRegistered } from '../utils/statusUtils';
 import { calcConsecutiveAbsences } from '../utils/absenceUtils';
+import TuksaePanel from '../components/tuksae/TuksaePanel';
+import TuksaePopup from '../components/tuksae/TuksaePopup';
 
 // 두 날짜 사이 일요일 개수
 function countSundaysBetween(start, end) {
@@ -109,6 +111,9 @@ export default function TeacherHomePage() {
       {tab === 'attend' && <AttendSection classId={myClassId} service={myService} teacherName={userProfile?.name} />}
       {tab === 'growth' && <GrowthSection classId={myClassId} teacherName={userProfile?.name} />}
       {tab === 'songcheong' && <StudentDashboardPage embedded />}
+
+      {/* 특새 기간 중 진입 시 팝업 */}
+      <TuksaePopup classId={myClassId} service={myService} teacherName={userProfile?.name} />
     </div>
   );
 }
@@ -120,6 +125,7 @@ const ATTEND_SUB_TABS = [
   { id: 'check', label: '출석체크' },
   { id: 'summary', label: '연간출석율' },
   { id: 'weekly', label: '주일별 출석기록' },
+  { id: 'tuksae', label: '특새출석' },
 ];
 
 function AttendSection({ classId, service, teacherName }) {
@@ -179,6 +185,7 @@ function AttendSection({ classId, service, teacherName }) {
 
       {sub === 'summary' && <ClassAttendanceSummary classId={classId} />}
       {sub === 'weekly' && <WeeklyAttendanceSection classId={classId} />}
+      {sub === 'tuksae' && <TuksaePanel classId={classId} service={service} teacherName={teacherName} />}
     </div>
   );
 }
