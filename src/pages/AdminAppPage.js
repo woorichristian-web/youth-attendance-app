@@ -95,7 +95,6 @@ function HomeMenu({ onNavigate }) {
   const [attendance, setAttendance] = useState([]);
   const [classes, setClasses] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -116,10 +115,7 @@ function HomeMenu({ onNavigate }) {
     const u4 = onSnapshot(collection(db, 'notifications'), (snap) => {
       setNotifications(snap.docs.map((d) => d.data()));
     });
-    const u5 = onSnapshot(collection(db, 'teacher_messages'), (snap) => {
-      setMessages(snap.docs.map((d) => d.data()));
-    });
-    return () => { u1(); u2(); u3(); u4(); u5(); };
+    return () => { u1(); u2(); u3(); u4(); };
   }, []);
 
   const stats = useMemo(() => {
@@ -135,12 +131,11 @@ function HomeMenu({ onNavigate }) {
     const thisMonthSundays = filterExcludedSundays(getSundaysInMonth(yr, mn));
 
     const thisWeek = attendance.filter((a) => a.date === thisSunStr);
-    let present = 0, absent = 0, missing = 0;
+    let present = 0, absent = 0;
     thisWeek.forEach((rec) => {
       rec.records?.forEach((r) => {
         if (r.present === true) present++;
         else if (r.present === false) absent++;
-        else missing++;
       });
     });
     const total = present + absent;
@@ -148,6 +143,10 @@ function HomeMenu({ onNavigate }) {
 
     const submittedClassIds = new Set(thisWeek.filter((r) => r.submitted !== false).map((r) => r.classId));
     const missingClasses = classes.filter((c) => !submittedClassIds.has(c.id));
+
+    // 출석미체크 = 아직 출석을 제출하지 않은 반에 속한 재적 학생 수
+    const missingClassIdSet = new Set(missingClasses.map((c) => c.id));
+    const missing = students.filter((s) => isRegistered(s) && missingClassIdSet.has(s.classId)).length;
 
     // 전체 누적 출석률 (모든 attendance 레코드 기준)
     let allPresent = 0, allTotal = 0;
@@ -164,10 +163,8 @@ function HomeMenu({ onNavigate }) {
       (n) => !n.read && (n.notes || '').includes('[심방/기도]')
     ).length;
 
-    // 받은 메시지 = 선생님이 보낸 메시지 중 미확인 건
-    const unreadMessages = messages.filter(
-      (m) => m.status === 'sent' && m.read !== true
-    ).length;
+    // 받은 메시지 = 특이사항(알림)에 남겨진 미확인 메시지 수
+    const unreadMessages = notifications.filter((n) => !n.read).length;
 
     // 새친구 = 등록일(joinDate)로부터 30일 이내 학생
     const newFriends = students.filter(
@@ -183,7 +180,7 @@ function HomeMenu({ onNavigate }) {
       visitRequests, unreadMessages, newFriends,
       monthSundayCount: thisMonthSundays.length,
     };
-  }, [students, attendance, classes, notifications, messages]);
+  }, [students, attendance, classes, notifications]);
 
   if (loading) return <div className="card text-center text-ink-muted py-8 text-sm">데이터를 불러오는 중...</div>;
 
