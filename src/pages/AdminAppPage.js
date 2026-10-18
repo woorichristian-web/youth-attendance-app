@@ -197,7 +197,7 @@ function HomeMenu({ onNavigate }) {
   return (
     <div className="space-y-5">
       {/* ── 히어로 카드 (민트 그라디언트) ── */}
-      <div className="rounded-2xl bg-gradient-to-br from-teal-600 via-teal-500 to-emerald-500 text-white p-6 md:p-8 shadow-md relative overflow-hidden">
+      <div className="rounded-2xl bg-gradient-to-br from-teal-600 via-teal-500 to-emerald-500 text-white p-6 md:p-8 shadow-md relative overflow-hidden select-none">
         <div className="absolute -top-20 -right-20 w-56 h-56 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute -bottom-16 -left-16 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
 
