@@ -6,24 +6,12 @@ import { useAuth } from '../contexts/AuthContext';
 import AttendanceSheet from '../components/attendance/AttendanceSheet';
 import PastAttendance from '../components/dashboard/PastAttendance';
 import StudentDashboardPage from './StudentDashboardPage';
-import { getThisSunday, formatDateKo, isValidSunday } from '../utils/dateUtils';
+import { getThisSunday, formatDateKo, isValidSunday, getSundaysInMonth } from '../utils/dateUtils';
+import { filterExcludedSundays } from '../utils/excludedDates';
 import { isRegistered } from '../utils/statusUtils';
 import { calcConsecutiveAbsences } from '../utils/absenceUtils';
 import TuksaePanel from '../components/tuksae/TuksaePanel';
 import TuksaePopup from '../components/tuksae/TuksaePopup';
-
-// 두 날짜 사이 일요일 개수
-function countSundaysBetween(start, end) {
-  const s = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-  const e = new Date(end.getFullYear(), end.getMonth(), end.getDate());
-  let count = 0;
-  const cur = new Date(s);
-  while (cur <= e) {
-    if (cur.getDay() === 0) count++;
-    cur.setDate(cur.getDate() + 1);
-  }
-  return count;
-}
 
 // 학생 상세 패널 — 월별 출석률 차트, 결석 요약, 장결 여부
 function StudentDetailPanel({ s, yearTotalSundays }) {
@@ -256,45 +244,52 @@ function ClassAttendanceSummary({ classId }) {
 
   if (loading) return <div className="card text-center text-ink-muted py-6 text-sm">불러오는 중...</div>;
 
-  // 전체 예배(일요일) 수 — 올해 1월 1일부터 현재까지의 일요일 개수
   const now = new Date();
-  const jan1 = new Date(now.getFullYear(), 0, 1);
-  const yearTotalSundays = countSundaysBetween(jan1, now);
+  const yr = now.getFullYear();
+  const pad = (n) => String(n).padStart(2, '0');
+  const todayStr = `${yr}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+  // 올해 1월~현재까지의 주일(일요일) 중 제외일(휴일·연휴)을 뺀 목록
+  const yearSundays = [];
+  for (let m = 1; m <= now.getMonth() + 1; m++) yearSundays.push(...getSundaysInMonth(yr, m));
+  const passedSundays = filterExcludedSundays(yearSundays.filter((d) => d <= todayStr)).sort();
+  const yearTotalSundays = passedSundays.length;
 
   // 학생별 통계 + 월별 데이터
+  // 출석률 = (참석한 주일 수) / (출석이 처음 기록된 날 ~ 현재까지의 제외일 제외 주일 수)
   const stats = students.map((st) => {
-    let present = 0, absent = 0, missing = 0;
     const attendedDates = new Set();
-    const absentDates = new Set();
+    const recordedDates = new Set(); // 출석/결석 어느 쪽이든 기록된 주일
     attendance.forEach((rec) => {
       const r = rec.records?.find((rr) => rr.studentId === st.id);
-      if (!r) return;
-      if (r.present === true) { present++; attendedDates.add(rec.date); }
-      else if (r.present === false) { absent++; absentDates.add(rec.date); }
-      else missing++;
+      if (!r || typeof r.present !== 'boolean' || !rec.date) return;
+      recordedDates.add(rec.date);
+      if (r.present === true) attendedDates.add(rec.date);
     });
-    const total = present + absent;
-    const rate = total > 0 ? Math.round((present / total) * 100) : null;
 
-    // 월별 출석률
+    // 출석이 처음 기록된 날 (기록이 없으면 등록일) → 분모 시작점
+    const firstRecord = recordedDates.size > 0 ? [...recordedDates].sort()[0] : (st.joinDate || null);
+    const applicable = firstRecord ? passedSundays.filter((d) => d >= firstRecord) : [];
+    const applicableCount = applicable.length;
+    const present = applicable.filter((d) => attendedDates.has(d)).length; // 참석
+    const absent = applicableCount - present; // 미참석(결석 처리)
+    const rate = applicableCount > 0 ? Math.round((present / applicableCount) * 100) : null;
+
+    // 월별 출석률 (해당 월의 제외일 제외 주일 중 참석 비율)
     const monthly = [];
     for (let m = 0; m <= now.getMonth(); m++) {
-      const monStart = new Date(now.getFullYear(), m, 1);
-      const monEnd = new Date(now.getFullYear(), m + 1, 0);
-      const monKey = String(m + 1).padStart(2, '0');
-      let mP = 0, mA = 0;
-      attendedDates.forEach((d) => { if (d.startsWith(`${now.getFullYear()}-${monKey}`)) mP++; });
-      absentDates.forEach((d) => { if (d.startsWith(`${now.getFullYear()}-${monKey}`)) mA++; });
-      const mT = mP + mA;
-      monthly.push({ month: m + 1, rate: mT > 0 ? Math.round((mP / mT) * 100) : null });
+      const monKey = `${yr}-${pad(m + 1)}`;
+      const monApplicable = applicable.filter((d) => d.startsWith(monKey));
+      const monPresent = monApplicable.filter((d) => attendedDates.has(d)).length;
+      monthly.push({ month: m + 1, rate: monApplicable.length > 0 ? Math.round((monPresent / monApplicable.length) * 100) : null });
     }
 
-    // 결석 표기: 01월~현재 결석수 / 올해 총 일요일 수
-    const absentLabel = `${String(absent).padStart(2, '0')}/${String(yearTotalSundays).padStart(2, '0')}`;
+    // 결석 표기: 미참석 수 / 적용 주일 수
+    const absentLabel = `${String(absent).padStart(2, '0')}/${String(applicableCount).padStart(2, '0')}`;
 
     const isLongAbsent = st.status === 'long_absent';
 
-    return { ...st, present, absent, missing, rate, monthly, absentLabel, isLongAbsent };
+    return { ...st, present, absent, missing: 0, rate, monthly, absentLabel, isLongAbsent };
   }).sort((a, b) => {
     // 장결자를 하단, 나머지는 출석률 내림차순
     if (a.isLongAbsent !== b.isLongAbsent) return a.isLongAbsent ? 1 : -1;
